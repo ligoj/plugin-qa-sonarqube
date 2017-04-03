@@ -173,7 +173,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		parameters.put(SonarPluginResource.PARAMETER_PROJECT, "16010");
 		final SonarProject project = resource.validateProject(parameters);
 		Assert.assertEquals(16010, project.getId().intValue());
-		Assert.assertEquals("LA POSTE - AEL Controle", project.getName());
+		Assert.assertEquals("Company1 - Project1", project.getName());
 		Assert.assertEquals("Parent defining top level global configuration of projects.", project.getDescription());
 		Assert.assertEquals(8644, project.getMeasures().get("ncloc").intValue());
 		Assert.assertEquals(100, project.getMeasures().get("coverage").intValue());
@@ -266,10 +266,10 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.start();
 
 		final List<SonarProject> projects = resource.findAllByName("service:qa:sonarqube:bpr", "Com");
-		Assert.assertEquals(12, projects.size());
-		Assert.assertEquals("BNPP - Carte Entreprise", projects.get(0).getName());
+		Assert.assertEquals(2, projects.size());
+		Assert.assertEquals("Company2 - Project2", projects.get(1).getName());
 		Assert.assertEquals("Parent defining top level global configuration of projects.", projects.get(0).getDescription());
-		Assert.assertEquals("com.bnpparibas.wce:wce", projects.get(0).getKey());
-		Assert.assertEquals(67541, projects.get(0).getId().intValue());
+		Assert.assertEquals("fr.company2:project2", projects.get(1).getKey());
+		Assert.assertEquals(67541, projects.get(1).getId().intValue());
 	}
 }
