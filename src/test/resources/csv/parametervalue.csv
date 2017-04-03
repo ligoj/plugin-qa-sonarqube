@@ -1,0 +1,5 @@
+parameter.id;data;node.id;subscription.id!
+service:qa:sonarqube:user;junit;service:qa:sonarqube:bpr;
+service:qa:sonarqube:password;secret;service:qa:sonarqube:bpr;
+service:qa:sonarqube:url;http://localhost:8120;service:qa:sonarqube:bpr;
+service:qa:sonarqube:project;123456;;1

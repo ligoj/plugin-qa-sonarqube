@@ -1,0 +1,12 @@
+.masonry-container .node.service-qa-sonarqube table.subscriptions th.features {
+	width: 38px;
+}
+
+.service-qa-sonarqube .features>.details {
+	cursor: default;
+}
+
+.service-qa-sonarqube .features>.details .label {
+	padding-left: 4px;
+	padding-right: 5px;
+}

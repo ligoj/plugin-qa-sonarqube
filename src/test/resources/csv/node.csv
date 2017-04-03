@@ -1,0 +1,4 @@
+id;name;refined.id;mode;uiClasses;tag;tagUiClasses
+service:qa;Quality Assurance;;LINK;fa fa-dashboard;technical;fa fa-industry
+service:qa:sonarqube;SonarQube;service:qa;LINK;;;
+service:qa:sonarqube:bpr;SonarQube DIG;service:qa:sonarqube;LINK;;;
