@@ -192,7 +192,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	@GET
 	@Path("{node}/{criteria}")
 	@Consumes(MediaType.APPLICATION_JSON)
-	public List<SonarProject> findAllByName(@PathParam("node") final String node, @PathParam("criteria") final String criteria) throws Exception {
+	public List<SonarProject> findAllByName(@PathParam("node") final String node, @PathParam("criteria") final String criteria) throws IOException {
 
 		// Prepare the context, an ordered set of projects
 		final Format format = new NormalizeFormat();
