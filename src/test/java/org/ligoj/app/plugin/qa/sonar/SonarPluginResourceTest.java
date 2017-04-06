@@ -304,10 +304,10 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 		final List<SonarProject> projects = resource.findAllByName("service:qa:sonarqube:bpr", "Com");
 		Assert.assertEquals(2, projects.size());
-		Assert.assertEquals("Company2 - Project2", projects.get(1).getName());
+		Assert.assertEquals("Some1 - Project1", projects.get(1).getName());
 		Assert.assertEquals("Parent defining top level global configuration of projects.",
 				projects.get(0).getDescription());
-		Assert.assertEquals("fr.company2:project2", projects.get(1).getKey());
-		Assert.assertEquals(67541, projects.get(1).getId().intValue());
+		Assert.assertEquals("fr.company1:project1", projects.get(1).getKey());
+		Assert.assertEquals(16010, projects.get(1).getId().intValue());
 	}
 }

@@ -15,7 +15,7 @@
 	{
 		"id": 16010,
 		"key": "fr.company1:project1",
-		"name": "Company1 - Project1",
+		"name": "Some1 - Project1",
 		"scope": "PRJ",
 		"qualifier": "TRK",
 		"date": "2010-12-01T06:04:13+0100",
@@ -27,7 +27,7 @@
 	},
 	{
 		"id": 67541,
-		"key": "fr.company2:project2",
+		"key": "fr.some2:project2",
 		"name": "Company2 - Project2",
 		"scope": "PRJ",
 		"qualifier": "TRK",
