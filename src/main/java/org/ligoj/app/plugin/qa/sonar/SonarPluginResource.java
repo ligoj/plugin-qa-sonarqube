@@ -227,14 +227,14 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	}
 
 	@Override
-	public SubscriptionStatusWithData checkSubscriptionStatus(final String node, final Map<String, String> parameters) throws Exception {
+	public SubscriptionStatusWithData checkSubscriptionStatus(final Map<String, String> parameters) throws Exception {
 		final SubscriptionStatusWithData nodeStatusWithData = new SubscriptionStatusWithData();
 		nodeStatusWithData.put("project", validateProject(parameters));
 		return nodeStatusWithData;
 	}
 
 	@Override
-	public boolean checkStatus(final String node, final Map<String, String> parameters) throws Exception {
+	public boolean checkStatus(final Map<String, String> parameters) throws Exception {
 		// Status is UP <=> Administration access is UP
 		validateAdminAccess(parameters);
 		return true;
