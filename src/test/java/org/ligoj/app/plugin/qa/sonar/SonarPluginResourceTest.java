@@ -27,7 +27,7 @@ import org.ligoj.app.model.ParameterValue;
 import org.ligoj.app.model.Project;
 import org.ligoj.app.model.Subscription;
 import org.ligoj.app.plugin.qa.QaResource;
-import org.ligoj.app.resource.node.NodeResource;
+import org.ligoj.app.resource.node.ParameterValueResource;
 import org.ligoj.app.resource.subscription.SubscriptionResource;
 import org.ligoj.bootstrap.core.validation.ValidationJsonException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,10 +46,10 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 public class SonarPluginResourceTest extends AbstractServerTest {
 	@Autowired
 	private SonarPluginResource resource;
-
+	
 	@Autowired
-	private NodeResource nodeResource;
-
+	private ParameterValueResource pvResource;
+	
 	@Autowired
 	private SubscriptionResource subscriptionResource;
 
@@ -112,7 +112,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlMatching(".*")).willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 		httpServer.start();
 
-		final Map<String, String> parameters = nodeResource.getParametersAsMap("service:qa:sonarqube:bpr");
+		final Map<String, String> parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
 		parameters.put(SonarPluginResource.PARAMETER_PROJECT, "0");
 		resource.validateProject(parameters);
 	}
@@ -188,7 +188,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 								StandardCharsets.UTF_8))));
 		httpServer.start();
 
-		final Map<String, String> parameters = nodeResource.getParametersAsMap("service:qa:sonarqube:bpr");
+		final Map<String, String> parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
 		parameters.put(SonarPluginResource.PARAMETER_PROJECT, "16010");
 		final SonarProject project = resource.validateProject(parameters);
 		Assert.assertEquals(16010, project.getId().intValue());
@@ -245,7 +245,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.start();
 
 		final String version = resource
-				.validateAdminAccess(nodeResource.getParametersAsMap("service:qa:sonarqube:bpr"));
+				.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 		Assert.assertEquals("4.3.2", version);
 	}
 
@@ -257,7 +257,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 				get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
 		httpServer.start();
 
-		resource.validateAdminAccess(nodeResource.getParametersAsMap("service:qa:sonarqube:bpr"));
+		resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 	}
 
 	@Test
@@ -277,7 +277,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(
 				get(urlEqualTo("/api/authentication/validate?format=json")).willReturn(aResponse().withStatus(status)));
 		httpServer.start();
-		resource.validateAdminAccess(nodeResource.getParametersAsMap("service:qa:sonarqube:bpr"));
+		resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 	}
 
 	@Test
@@ -290,7 +290,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(
 				get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
 		httpServer.start();
-		resource.validateAdminAccess(nodeResource.getParametersAsMap("service:qa:sonarqube:bpr"));
+		resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 	}
 
 	@Test

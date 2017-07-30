@@ -197,7 +197,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		// Prepare the context, an ordered set of projects
 		final Format format = new NormalizeFormat();
 		final String formatCriteria = format.format(criteria);
-		final Map<String, String> parameters = nodeResource.getParametersAsMap(node);
+		final Map<String, String> parameters = pvResource.getNodeParameters(node);
 
 		// Get the projects and parse them
 		final List<SonarProject> projectsRaw = getProjects(parameters);
