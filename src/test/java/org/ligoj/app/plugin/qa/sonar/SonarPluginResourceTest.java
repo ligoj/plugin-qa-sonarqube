@@ -229,7 +229,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateAdminAccessConnectivityFail() throws Exception {
+	public void validateAdminAccessConnectivityFail() {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
 		httpServer.start();
 
@@ -239,16 +239,16 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateAdminAccessLoginFailOn40x() throws Exception {
+	public void validateAdminAccessLoginFailOn40x() {
 		validateAdminAccessLoginFail(HttpStatus.SC_BAD_GATEWAY);
 	}
 
 	@Test
-	public void validateAdminAccessLoginFailOn30x() throws Exception {
+	public void validateAdminAccessLoginFailOn30x() {
 		validateAdminAccessLoginFail(HttpStatus.SC_MOVED_TEMPORARILY);
 	}
 
-	private void validateAdminAccessLoginFail(final int status) throws Exception {
+	private void validateAdminAccessLoginFail(final int status) {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json")).willReturn(aResponse().withStatus(status)));
 		httpServer.start();
@@ -258,7 +258,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateAdminAccessNoRight() throws Exception {
+	public void validateAdminAccessNoRight() {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
