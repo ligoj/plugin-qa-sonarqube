@@ -20,6 +20,11 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SonarProject extends NamedBean<Integer> implements IDescribableBean<Integer> {
 
+	/**
+	 * SID
+	 */
+	private static final long serialVersionUID = 1L;
+
 	private String description;
 
 	/**
