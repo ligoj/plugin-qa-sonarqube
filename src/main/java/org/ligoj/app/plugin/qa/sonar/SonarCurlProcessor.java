@@ -2,9 +2,9 @@ package org.ligoj.app.plugin.qa.sonar;
 
 import java.util.Map;
 
-import org.ligoj.app.resource.plugin.DefaultHttpResponseCallback;
-import org.ligoj.app.resource.plugin.HttpResponseCallback;
-import org.ligoj.app.resource.plugin.SessionAuthCurlProcessor;
+import org.ligoj.bootstrap.core.curl.DefaultHttpResponseCallback;
+import org.ligoj.bootstrap.core.curl.HttpResponseCallback;
+import org.ligoj.bootstrap.core.curl.SessionAuthCurlProcessor;
 
 /**
  * SonarQube processor.
