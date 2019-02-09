@@ -1,13 +1,13 @@
 [
 	{
 		"id": 1209,
-		"key": "fr.gfi.tsung:tsung-web",
-		"name": "GFI - Tsung Web",
+		"key": "fr.ligoj.tsung:tsung-web",
+		"name": "Ligoj - Tsung Web",
 		"scope": "PRJ",
 		"qualifier": "TRK",
 		"date": "2009-09-18T16:18:30+0200",
 		"creationDate": null,
-		"lname": "Gfi - Tsung Web",
+		"lname": "Ligoj - Tsung Web",
 		"lang": "java",
 		"version": "1.2",
 		"description": "Tsung Web Module"
@@ -39,13 +39,13 @@
 	},
 	{
 		"id": 12531,
-		"key": "fr.gfi.vigireport:vigireport-web",
-		"name": "Gfi - Vigireport",
+		"key": "fr.ligoj.vigireport:vigireport-web",
+		"name": "Ligoj - Vigireport",
 		"scope": "PRJ",
 		"qualifier": "TRK",
 		"date": "2015-04-18T02:06:18+0200",
 		"creationDate": null,
-		"lname": "Gfi - Vigireport",
+		"lname": "Ligoj - Vigireport",
 		"version": "2.1.0",
 		"description": "Web Project Management"
 	}
