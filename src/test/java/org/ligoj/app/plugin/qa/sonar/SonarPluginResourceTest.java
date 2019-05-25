@@ -1,3 +1,6 @@
+/*
+ * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
+ */
 package org.ligoj.app.plugin.qa.sonar;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -53,10 +56,10 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	@Autowired
 	private SubscriptionResource subscriptionResource;
 
-	protected int subscription;
+	private int subscription;
 
 	@BeforeEach
-	public void prepareData() throws IOException {
+	void prepareData() throws IOException {
 		// Only with Spring context
 		persistEntities("csv", new Class[] { Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class },
 				StandardCharsets.UTF_8.name());
@@ -70,22 +73,22 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	 * Return the subscription identifier of the given project. Assumes there is
 	 * only one subscription for a service.
 	 */
-	protected int getSubscription(final String project) {
+	private int getSubscription(final String project) {
 		return getSubscription(project, QaResource.SERVICE_KEY);
 	}
 
 	@Test
-	public void delete() throws Exception {
+	void delete() throws Exception {
 		resource.delete(subscription, false);
 	}
 
 	@Test
-	public void getSonarResourceInvalidUrl() {
+	void getSonarResourceInvalidUrl() {
 		resource.getResource(new HashMap<>(), null);
 	}
 
 	@Test
-	public void getVersion() throws Exception {
+	void getVersion() throws Exception {
 		httpServer.stubFor(get(urlEqualTo("/api/server/index?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-server-index.json").getInputStream(), StandardCharsets.UTF_8))));
@@ -96,14 +99,14 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void getLastVersion() throws Exception {
+	void getLastVersion() throws Exception {
 		final String lastVersion = resource.getLastVersion();
 		Assertions.assertNotNull(lastVersion);
 		Assertions.assertTrue(lastVersion.compareTo("5.0") > 0);
 	}
 
 	@Test
-	public void validateProjectNotFound() {
+	void validateProjectNotFound() {
 		httpServer.stubFor(get(urlMatching(".*")).willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 		httpServer.start();
 
@@ -115,7 +118,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void linkNoProject() throws Exception {
+	void linkNoProject() throws Exception {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
@@ -135,7 +138,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void link() throws Exception {
+	void link() throws Exception {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
@@ -171,7 +174,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateProject() throws IOException {
+	void validateProject() throws IOException {
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=16010&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
@@ -189,7 +192,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void checkStatus() throws Exception {
+	void checkStatus() throws Exception {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
@@ -205,7 +208,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void checkSubscriptionStatus() throws Exception {
+	void checkSubscriptionStatus() throws Exception {
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=123456&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
@@ -214,7 +217,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateAdminAccess() throws Exception {
+	void validateAdminAccess() throws Exception {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
@@ -229,7 +232,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateAdminAccessConnectivityFail() {
+	void validateAdminAccessConnectivityFail() {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
 		httpServer.start();
 
@@ -239,12 +242,12 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateAdminAccessLoginFailOn40x() {
+	void validateAdminAccessLoginFailOn40x() {
 		validateAdminAccessLoginFail(HttpStatus.SC_BAD_GATEWAY);
 	}
 
 	@Test
-	public void validateAdminAccessLoginFailOn30x() {
+	void validateAdminAccessLoginFailOn30x() {
 		validateAdminAccessLoginFail(HttpStatus.SC_MOVED_TEMPORARILY);
 	}
 
@@ -258,7 +261,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void validateAdminAccessNoRight() {
+	void validateAdminAccessNoRight() {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
@@ -270,7 +273,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	public void findProjectByName() throws Exception {
+	void findProjectByName() throws Exception {
 		httpServer.stubFor(
 				get(urlEqualTo("/api/resources?format=json")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource.json").getInputStream(), StandardCharsets.UTF_8))));

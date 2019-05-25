@@ -1,3 +1,6 @@
+/*
+ * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
+ */
 package org.ligoj.app.plugin.qa.sonar;
 
 import java.io.IOException;
@@ -42,7 +45,7 @@ public class QaResourceTest extends AbstractAppTest {
 	private NodeRepository nodeRepository;
 
 	@BeforeEach
-	public void prepareData() throws IOException {
+	void prepareData() throws IOException {
 		// Only with Spring context
 		persistEntities("csv",
 				new Class[] { Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class, },
@@ -53,7 +56,7 @@ public class QaResourceTest extends AbstractAppTest {
 	}
 
 	@Test
-	public void delete() throws Exception {
+	void delete() throws Exception {
 		final Project project = new Project();
 		project.setName("TEST");
 		project.setPkey("test");
@@ -76,7 +79,7 @@ public class QaResourceTest extends AbstractAppTest {
 	}
 
 	@Test
-	public void create() throws Exception {
+	void create() throws Exception {
 		final Project project = new Project();
 		project.setName("TEST");
 		project.setPkey("test");

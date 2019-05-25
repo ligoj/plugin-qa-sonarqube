@@ -1,3 +1,6 @@
+/*
+ * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
+ */
 package org.ligoj.app.plugin.qa.sonar;
 
 import java.io.IOException;
@@ -50,6 +53,9 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	public static final String KEY = URL.replace('/', ':').substring(1);
 
+	/**
+	 * Version utilities for compare.
+	 */
 	@Autowired
 	protected VersionUtils versionUtils;
 
@@ -90,9 +96,9 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Validate the project connectivity.
 	 * 
-	 * @param parameters
-	 *            the project parameters.
+	 * @param parameters the project parameters.
 	 * @return project details.
+	 * @throws IOException When JSON parsing failed.
 	 */
 	protected SonarProject validateProject(final Map<String, String> parameters) throws IOException {
 		// Get project's configuration
@@ -110,16 +116,18 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Validate the basic REST connectivity to SonarQube.
 	 * 
-	 * @param parameters
-	 *            the server parameters.
+	 * @param parameters the server parameters.
 	 * @return the detected SonarQube version.
+	 * @throws IOException When JSON parsing failed.
 	 */
-	protected String validateAdminAccess(final Map<String, String> parameters) throws Exception {
+	protected String validateAdminAccess(final Map<String, String> parameters) throws IOException {
 		final String url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
 		CurlProcessor.validateAndClose(url, PARAMETER_URL, "sonar-connection");
 
-		// Check the user can log-in to SonarQube with the preempted authentication processor
-		if (!StringUtils.trimToEmpty(getResource(parameters, "api/authentication/validate?format=json")).contains("true")) {
+		// Check the user can log-in to SonarQube with the preempted authentication
+		// processor
+		if (!StringUtils.trimToEmpty(getResource(parameters, "api/authentication/validate?format=json"))
+				.contains("true")) {
 			throw new ValidationJsonException(PARAMETER_USER, "sonar-login");
 		}
 
@@ -131,14 +139,25 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	}
 
 	/**
-	 * Return a SonarQube's resource. Return <code>null</code> when the resource is not found.
+	 * Return a SonarQube's resource. Return <code>null</code> when the resource is
+	 * not found.
+	 * 
+	 * @param parameters The subscription parameters.
+	 * @param resource   The SonarQube resource URL to query.
+	 * @return The JSON data.
 	 */
 	protected String getResource(final Map<String, String> parameters, final String resource) {
 		return getResource(new SonarCurlProcessor(parameters), parameters.get(PARAMETER_URL), resource);
 	}
 
 	/**
-	 * Return a SonarQube's resource. Return <code>null</code> when the resource is not found.
+	 * Return a SonarQube's resource. Return <code>null</code> when the resource is
+	 * not found.
+	 * 
+	 * @param processor The CURL processor.
+	 * @param url       The base URL.
+	 * @param resource  The SonarQube resource URL to query.
+	 * @return The JSON data.
 	 */
 	protected String getResource(final CurlProcessor processor, final String url, final String resource) {
 		// Get the resource using the preempted authentication
@@ -146,53 +165,66 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	}
 
 	@Override
-	public String getVersion(final Map<String, String> parameters) throws Exception {
-		final String sonarVersionAsJson = ObjectUtils.defaultIfNull(getResource(parameters, "api/server/index?format=json"), "{}");
+	public String getVersion(final Map<String, String> parameters) throws IOException {
+		final String sonarVersionAsJson = ObjectUtils
+				.defaultIfNull(getResource(parameters, "api/server/index?format=json"), "{}");
 		return (String) new ObjectMapper().readValue(sonarVersionAsJson, Map.class).get("version");
 	}
 
 	/**
 	 * Return all SonarQube project without limit.
+	 * 
+	 * @param parameters The subscription parameters.
+	 * @return The gathered SonarQube projects data.
+	 * @throws IOException When JSON parsing failed.
 	 */
 	protected List<SonarProject> getProjects(final Map<String, String> parameters) throws IOException {
-		return new ObjectMapper().readValue(getResource(parameters, "api/resources?format=json"), new TypeReference<List<SonarProject>>() {
-			// Nothing to override
-		});
+		return new ObjectMapper().readValue(getResource(parameters, "api/resources?format=json"),
+				new TypeReference<List<SonarProject>>() {
+					// Nothing to override
+				});
 	}
 
 	/**
 	 * Return SonarQube project from its identifier.
+	 * 
+	 * @param parameters The subscription parameters.
+	 * @param id         The SonarQube project identifier.
+	 * @return The gathered SonarQube data.
+	 * @throws IOException When JSON parsing failed.
 	 */
 	protected SonarProject getProject(final Map<String, String> parameters, final int id) throws IOException {
-		final String projectAsJson = getResource(parameters, "api/resources?format=json&resource=" + id + "&metrics=ncloc,coverage,sqale_rating");
+		final String projectAsJson = getResource(parameters,
+				"api/resources?format=json&resource=" + id + "&metrics=ncloc,coverage,sqale_rating");
 		if (projectAsJson == null) {
 			return null;
 		}
 
 		// Parse and build the project from the JSON
-		final SonarProject project = new ObjectMapper().readValue(StringUtils.removeEnd(StringUtils.removeStart(projectAsJson, "["), "]"),
-				SonarProject.class);
+		final SonarProject project = new ObjectMapper()
+				.readValue(StringUtils.removeEnd(StringUtils.removeStart(projectAsJson, "["), "]"), SonarProject.class);
 
 		// Map nicely the measures
-		project.setMeasures(project.getRawMesures().stream().collect(Collectors.toMap(SonarMesure::getKey, SonarMesure::getValue)));
+		project.setMeasures(
+				project.getRawMesures().stream().collect(Collectors.toMap(SonarMesure::getKey, SonarMesure::getValue)));
 		project.setRawMesures(null);
 		return project;
 	}
 
 	/**
-	 * Search the SonarQube's projects matching to the given criteria. Name, display name and description are
-	 * considered.
+	 * Search the SonarQube's projects matching to the given criteria. Name, display
+	 * name and description are considered.
 	 * 
-	 * @param node
-	 *            the node to be tested with given parameters.
-	 * @param criteria
-	 *            the search criteria.
+	 * @param node     the node to be tested with given parameters.
+	 * @param criteria the search criteria.
 	 * @return project names matching the criteria.
+	 * @throws IOException When JSON parsing failed.
 	 */
 	@GET
 	@Path("{node}/{criteria}")
 	@Consumes(MediaType.APPLICATION_JSON)
-	public List<SonarProject> findAllByName(@PathParam("node") final String node, @PathParam("criteria") final String criteria) throws IOException {
+	public List<SonarProject> findAllByName(@PathParam("node") final String node,
+			@PathParam("criteria") final String criteria) throws IOException {
 
 		// Prepare the context, an ordered set of projects
 		final Format format = new NormalizeFormat();
