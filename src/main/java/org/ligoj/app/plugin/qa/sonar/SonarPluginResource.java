@@ -3,21 +3,8 @@
  */
 package org.ligoj.app.plugin.qa.sonar;
 
-import java.io.IOException;
-import java.text.Format;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.ligoj.app.api.SubscriptionStatusWithData;
@@ -32,8 +19,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * Sonar resource.
@@ -59,8 +52,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	@Autowired
 	protected VersionUtils versionUtils;
 
-	@Value("${sonar.jira.url:https://jira.sonarsource.com}")
-	private String versionServer;
+	@Value("${sonar.jira.url:https://sonarsource.atlassian.net}")
+	protected String versionServer;
 
 	/**
 	 * Sonar user name able to connect to instance.
@@ -84,7 +77,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	@Override
 	public void link(final int subscription) throws Exception {
-		final Map<String, String> parameters = subscriptionResource.getParameters(subscription);
+		final var parameters = subscriptionResource.getParameters(subscription);
 
 		// Validate the node settings
 		validateAdminAccess(parameters);
@@ -102,8 +95,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	protected SonarProject validateProject(final Map<String, String> parameters) throws IOException {
 		// Get project's configuration
-		final int id = Integer.parseInt(ObjectUtils.defaultIfNull(parameters.get(PARAMETER_PROJECT), "0"));
-		final SonarProject result = getProject(parameters, id);
+		final var id = Integer.parseInt(ObjectUtils.defaultIfNull(parameters.get(PARAMETER_PROJECT), "0"));
+		final var result = getProject(parameters, id);
 
 		if (result == null) {
 			// Invalid id
@@ -121,10 +114,10 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @throws IOException When JSON parsing failed.
 	 */
 	protected String validateAdminAccess(final Map<String, String> parameters) throws IOException {
-		final String url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
+		final var url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
 		CurlProcessor.validateAndClose(url, PARAMETER_URL, "sonar-connection");
 
-		// Check the user can log-in to SonarQube with the preempted authentication
+		// Check the user can login to SonarQube with the preempted authentication
 		// processor
 		if (!StringUtils.trimToEmpty(getResource(parameters, "api/authentication/validate?format=json"))
 				.contains("true")) {
@@ -166,7 +159,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	@Override
 	public String getVersion(final Map<String, String> parameters) throws IOException {
-		final String sonarVersionAsJson = ObjectUtils
+		final var sonarVersionAsJson = ObjectUtils
 				.defaultIfNull(getResource(parameters, "api/server/index?format=json"), "{}");
 		return (String) new ObjectMapper().readValue(sonarVersionAsJson, Map.class).get("version");
 	}
@@ -227,16 +220,16 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 			@PathParam("criteria") final String criteria) throws IOException {
 
 		// Prepare the context, an ordered set of projects
-		final Format format = new NormalizeFormat();
-		final String formatCriteria = format.format(criteria);
-		final Map<String, String> parameters = pvResource.getNodeParameters(node);
+		final var format = new NormalizeFormat();
+		final var formatCriteria = format.format(criteria);
+		final var parameters = pvResource.getNodeParameters(node);
 
 		// Get the projects and parse them
-		final List<SonarProject> projectsRaw = getProjects(parameters);
-		final Map<String, SonarProject> result = new TreeMap<>();
-		for (final SonarProject project : projectsRaw) {
-			final String name = StringUtils.trimToNull(project.getName());
-			final String key = project.getKey();
+		final var projectsRaw = getProjects(parameters);
+		final var result = new TreeMap<String, SonarProject>();
+		for (final var project : projectsRaw) {
+			final var name = StringUtils.trimToNull(project.getName());
+			final var key = project.getKey();
 
 			// Check the values of this project
 			if (format.format(name).contains(formatCriteria) || format.format(key).contains(formatCriteria)) {
@@ -260,7 +253,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	@Override
 	public SubscriptionStatusWithData checkSubscriptionStatus(final Map<String, String> parameters) throws Exception {
-		final SubscriptionStatusWithData nodeStatusWithData = new SubscriptionStatusWithData();
+		final var nodeStatusWithData = new SubscriptionStatusWithData();
 		nodeStatusWithData.put("project", validateProject(parameters));
 		return nodeStatusWithData;
 	}

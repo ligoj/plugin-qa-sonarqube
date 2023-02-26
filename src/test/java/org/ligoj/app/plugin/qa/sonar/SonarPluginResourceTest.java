@@ -3,19 +3,7 @@
  */
 package org.ligoj.app.plugin.qa.sonar;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.transaction.Transactional;
-
+import jakarta.transaction.Transactional;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.Assertions;
@@ -23,11 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.ligoj.app.AbstractServerTest;
-import org.ligoj.app.model.Node;
-import org.ligoj.app.model.Parameter;
-import org.ligoj.app.model.ParameterValue;
-import org.ligoj.app.model.Project;
-import org.ligoj.app.model.Subscription;
+import org.ligoj.app.model.*;
 import org.ligoj.app.plugin.qa.QaResource;
 import org.ligoj.app.resource.node.ParameterValueResource;
 import org.ligoj.app.resource.subscription.SubscriptionResource;
@@ -38,6 +22,13 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 
 /**
  * Test class of {@link SonarPluginResource}
@@ -61,7 +52,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	@BeforeEach
 	void prepareData() throws IOException {
 		// Only with Spring context
-		persistEntities("csv", new Class[] { Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class },
+		persistEntities("csv", new Class[]{Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class},
 				StandardCharsets.UTF_8.name());
 		this.subscription = getSubscription("gStack");
 
@@ -100,7 +91,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void getLastVersion() throws Exception {
-		final String lastVersion = resource.getLastVersion();
+		final var lastVersion = resource.getLastVersion();
 		Assertions.assertNotNull(lastVersion);
 		Assertions.assertTrue(lastVersion.compareTo("5.0") > 0);
 	}
@@ -110,11 +101,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlMatching(".*")).willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 		httpServer.start();
 
-		final Map<String, String> parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
+		final var parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
 		parameters.put(SonarPluginResource.PARAMETER_PROJECT, "0");
-		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> {
-			resource.validateProject(parameters);
-		}), SonarPluginResource.PARAMETER_PROJECT, "sonar-project");
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> resource.validateProject(parameters)), SonarPluginResource.PARAMETER_PROJECT, "sonar-project");
 	}
 
 	@Test
@@ -132,9 +121,8 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 		// Invoke create for an already created entity, since for now, there is
 		// nothing but validation pour SonarQube
-		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> {
-			resource.link(subscription);
-		}), SonarPluginResource.PARAMETER_PROJECT, "sonar-project");
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> resource.link(subscription)),
+				SonarPluginResource.PARAMETER_PROJECT, "sonar-project");
 	}
 
 	@Test
@@ -152,14 +140,14 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.start();
 
 		// Attach the SonarQube project identifier
-		final Parameter parameter = new Parameter();
+		final var parameter = new Parameter();
 		parameter.setId(SonarPluginResource.PARAMETER_PROJECT);
-		final Subscription previous = em.find(Subscription.class, this.subscription);
-		final Subscription subscription = new Subscription();
+		final var previous = em.find(Subscription.class, this.subscription);
+		final var subscription = new Subscription();
 		subscription.setNode(previous.getNode());
 		subscription.setProject(previous.getProject());
 		em.persist(subscription);
-		final ParameterValue parameterValue = new ParameterValue();
+		final var parameterValue = new ParameterValue();
 		parameterValue.setParameter(parameter);
 		parameterValue.setData("16010");
 		parameterValue.setSubscription(subscription);
@@ -180,9 +168,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
-		final Map<String, String> parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
+		final var parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
 		parameters.put(SonarPluginResource.PARAMETER_PROJECT, "16010");
-		final SonarProject project = resource.validateProject(parameters);
+		final var project = resource.validateProject(parameters);
 		Assertions.assertEquals(16010, project.getId().intValue());
 		Assertions.assertEquals("Company1 - Project1", project.getName());
 		Assertions.assertEquals("Parent defining top level global configuration of projects.", project.getDescription());
@@ -236,9 +224,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
 		httpServer.start();
 
-		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> {
-			resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
-		}), SonarPluginResource.PARAMETER_URL, "sonar-connection");
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class,
+						() -> resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),
+				SonarPluginResource.PARAMETER_URL, "sonar-connection");
 	}
 
 	@Test
@@ -255,9 +243,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json")).willReturn(aResponse().withStatus(status)));
 		httpServer.start();
-		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> {
-			resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
-		}), SonarPluginResource.PARAMETER_USER, "sonar-login");
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () ->
+						resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),
+				SonarPluginResource.PARAMETER_USER, "sonar-login");
 	}
 
 	@Test
@@ -267,9 +255,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
 		httpServer.start();
-		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> {
-			resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
-		}), SonarPluginResource.PARAMETER_USER, "sonar-rights");
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () ->
+						resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),
+				SonarPluginResource.PARAMETER_USER, "sonar-rights");
 	}
 
 	@Test
@@ -279,7 +267,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 						new ClassPathResource("mock-server/sonar/sonar-resource.json").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
-		final List<SonarProject> projects = resource.findAllByName("service:qa:sonarqube:bpr", "Com");
+		final var projects = resource.findAllByName("service:qa:sonarqube:bpr", "Com");
 		Assertions.assertEquals(2, projects.size());
 		Assertions.assertEquals("Some1 - Project1", projects.get(1).getName());
 		Assertions.assertEquals("Parent defining top level global configuration of projects.", projects.get(0).getDescription());
