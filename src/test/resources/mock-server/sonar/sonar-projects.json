@@ -1,0 +1,58 @@
+{
+  "paging": {
+    "pageIndex": 1,
+    "pageSize": 100,
+    "total": 2
+  },
+  "components": [
+    {
+      "key": "fr.ligoj.tsung:tsung-web",
+      "name": "Ligoj - Tsung Web",
+      "scope": "PRJ",
+      "qualifier": "TRK",
+      "date": "2009-09-18T16:18:30+0200",
+      "creationDate": null,
+      "lname": "Ligoj - Tsung Web",
+      "lang": "java",
+      "version": "1.2",
+      "description": "Tsung Web Module"
+    },
+    {
+      "key": "fr.company1:project1",
+      "name": "Some1 - Project1",
+      "scope": "PRJ",
+      "qualifier": "TRK",
+      "date": "2010-12-01T06:04:13+0100",
+      "creationDate": null,
+      "lname": "Company1 - Project1 Description",
+      "lang": "php",
+      "version": "1.1",
+      "description": "Parent defining top level global configuration of projects."
+    },
+    {
+      "key": "fr.some2:project2",
+      "name": "Company2 - Project2",
+      "scope": "PRJ",
+      "qualifier": "TRK",
+      "date": "2014-05-17T16:29:00+0200",
+      "creationDate": null,
+      "lname": "Company1 - Project1 Description",
+      "version": "0.20130301",
+      "description": "Parent defining top level global configuration of projects."
+    },
+    {
+      "key": "fr.ligoj.vigireport:vigireport-web",
+      "name": "Ligoj - Vigireport",
+      "scope": "PRJ",
+      "qualifier": "TRK",
+      "date": "2015-04-18T02:06:18+0200",
+      "creationDate": null,
+      "lname": "Ligoj - Vigireport",
+      "version": "2.1.0",
+      "visibility": "public",
+      "lastAnalysisDate": "2017-03-01T11:39:03+0300",
+      "revision": "cfb82f55c6ef32e61828c4cb3db2da12795fd767",
+      "description": "Web Project Management"
+    }
+  ]
+}

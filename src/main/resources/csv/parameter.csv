@@ -2,4 +2,4 @@ id;owner.id;data;mandatory;type;mode;secured
 service:qa:sonarqube:url;service:qa:sonarqube;;true;TEXT;;
 service:qa:sonarqube:user;service:qa:sonarqube;;true;TEXT;;true
 service:qa:sonarqube:password;service:qa:sonarqube;;true;TEXT;;true
-service:qa:sonarqube:project;service:qa:sonarqube;"{""min"":1}";true;INTEGER;;
+service:qa:sonarqube:project;service:qa:sonarqube;;true;TEXT;;

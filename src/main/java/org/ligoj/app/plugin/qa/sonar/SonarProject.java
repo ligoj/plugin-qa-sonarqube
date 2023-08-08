@@ -3,17 +3,16 @@
  */
 package org.ligoj.app.plugin.qa.sonar;
 
-import java.util.List;
-import java.util.Map;
-
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 import org.ligoj.bootstrap.core.IDescribableBean;
 import org.ligoj.bootstrap.core.NamedBean;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import lombok.Getter;
-import lombok.Setter;
+import java.util.List;
+import java.util.Map;
 
 /**
  * SonarQube project retrieved from REST API. Name, and also some additional
@@ -22,7 +21,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SonarProject extends NamedBean<Integer> implements IDescribableBean<Integer> {
+public class SonarProject extends NamedBean<String> implements IDescribableBean<String> {
 
 	/**
 	 * SID
@@ -35,12 +34,14 @@ public class SonarProject extends NamedBean<Integer> implements IDescribableBean
 	 * SonarQube raw structure.
 	 */
 	@JsonProperty("msr")
+	@JsonAlias("measures")
 	private List<SonarMeasure> rawMeasures;
 
 	/**
 	 * Mapped values for easiest traversals.
 	 */
-	private Map<String, Integer> measures;
+	@JsonIgnoreProperties(allowSetters = false, allowGetters = true)
+	private Map<String, Integer> measuresAsMap;
 
 	/**
 	 * Human-readable key
@@ -52,7 +53,7 @@ public class SonarProject extends NamedBean<Integer> implements IDescribableBean
 	 * 
 	 * @param lname The local name of the project.
 	 */
-	@JsonProperty(value = "lname")
+	@JsonProperty("lname")
 	public void setLname(final String lname) {
 		this.description = lname;
 	}

@@ -57,10 +57,28 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		this.subscription = getSubscription("gStack");
 	}
 
+	private void mockVersion() throws IOException {
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
+	}
+
+	private void mockVersion63() throws IOException {
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-server-version-6.3.txt").getInputStream(), StandardCharsets.UTF_8))));
+	}
+
+	private void mockSession() {
+		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+	}
+
 	@Test
 	void getKey() {
 		// Coverage only
-		Assertions.assertEquals("service:qa:sonarqube",resource.getKey());
+		Assertions.assertEquals("service:qa:sonarqube", resource.getKey());
 	}
 
 	/**
@@ -83,9 +101,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void getVersion() throws Exception {
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
+		mockVersion();
 		httpServer.start();
 
 		final String version = resource.getVersion(subscription);
@@ -100,7 +116,8 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	void validateProjectNotFound() {
+	void validateProjectNotFound() throws IOException {
+		mockVersion();
 		httpServer.stubFor(get(urlMatching(".*")).willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 		httpServer.start();
 
@@ -111,13 +128,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void linkNoProject() throws Exception {
-		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
-		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		mockVersion();
+		mockSession();
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=0&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 		httpServer.start();
@@ -130,18 +143,30 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void link() throws Exception {
-		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
-		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		mockVersion();
+		mockSession();
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=16010&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
+		validateLink("16010");
+	}
 
+
+	@Test
+	void link63() throws Exception {
+		mockVersion63();
+		mockSession();
+		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
+		httpServer.stubFor(get(urlEqualTo("/api/measures/component?component=fr.company1%3Aproject1&metricKeys=ncloc,coverage,sqale_rating,security_rating,reliability_rating,security_review_rating"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-resource-16010_6.3.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+		validateLink("fr.company1:project1");
+	}
+
+	private void validateLink(final String id) throws Exception {
 		// Attach the SonarQube project identifier
 		final var parameter = new Parameter();
 		parameter.setId(SonarPluginResource.PARAMETER_PROJECT);
@@ -152,7 +177,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		em.persist(subscription);
 		final var parameterValue = new ParameterValue();
 		parameterValue.setParameter(parameter);
-		parameterValue.setData("16010");
+		parameterValue.setData(id);
 		parameterValue.setSubscription(subscription);
 		em.persist(parameterValue);
 		em.flush();
@@ -162,35 +187,48 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		resource.link(subscription.getId());
 
 		// Nothing to validate for now...
+
 	}
 
 	@Test
 	void validateProject() throws IOException {
+		mockVersion();
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=16010&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
+		final var project =validateProject("16010");
+		Assertions.assertEquals("16010", project.getId());
+	}
 
+	@Test
+	void validateProject63() throws IOException {
+		mockVersion63();
+		httpServer.stubFor(get(urlEqualTo("/api/measures/component?component=fr.company1%3Aproject1&metricKeys=ncloc,coverage,sqale_rating,security_rating,reliability_rating,security_review_rating"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-resource-16010_6.3.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+		final var project = validateProject("fr.company1:project1");
+		Assertions.assertEquals("fr.company1:project1", project.getKey());
+	}
+
+	private SonarProject validateProject(final String id) throws IOException {
 		final var parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
-		parameters.put(SonarPluginResource.PARAMETER_PROJECT, "16010");
+		parameters.put(SonarPluginResource.PARAMETER_PROJECT, id);
 		final var project = resource.validateProject(parameters);
-		Assertions.assertEquals(16010, project.getId().intValue());
 		Assertions.assertEquals("Company1 - Project1", project.getName());
 		Assertions.assertEquals("Parent defining top level global configuration of projects.", project.getDescription());
-		Assertions.assertEquals(8644, project.getMeasures().get("ncloc").intValue());
-		Assertions.assertEquals(100, project.getMeasures().get("coverage").intValue());
-		Assertions.assertEquals(1, project.getMeasures().get("sqale_rating").intValue());
+		Assertions.assertEquals(8644, project.getMeasuresAsMap().get("ncloc").intValue());
+		Assertions.assertEquals(100, project.getMeasuresAsMap().get("coverage").intValue());
+		Assertions.assertEquals(1, project.getMeasuresAsMap().get("sqale_rating").intValue());
+		return project;
 	}
 
 	@Test
 	void checkStatus() throws Exception {
-		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
-		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		mockVersion();
+		mockSession();
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
 		final Map<String, String> parameters = subscriptionResource.getParametersNoCheck(subscription);
@@ -200,6 +238,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void checkSubscriptionStatus() throws Exception {
+		mockVersion();
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=123456&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
@@ -209,13 +248,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void validateAdminAccess() throws Exception {
-		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
-		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		mockVersion();
+		mockSession();
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
 		final String version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
@@ -224,13 +259,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void validateAdminAccess63() throws Exception {
-		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
-		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		mockVersion63();
+		mockSession();
 		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version-6.3.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
 		final String version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
@@ -268,13 +299,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void validateAdminAccessNoRight() throws IOException {
-		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
-		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		mockVersion();
+		mockSession();
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () ->
 						resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),
@@ -283,13 +310,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void validateAdminAccessNoRight63() throws IOException {
-		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
-		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		mockVersion63();
+		mockSession();
 		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version-6.3.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () ->
 						resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),
@@ -298,6 +321,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void findProjectByName() throws Exception {
+		mockVersion();
 		httpServer.stubFor(
 				get(urlEqualTo("/api/resources?format=json")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource.json").getInputStream(), StandardCharsets.UTF_8))));
@@ -308,6 +332,22 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		Assertions.assertEquals("Some1 - Project1", projects.get(1).getName());
 		Assertions.assertEquals("Parent defining top level global configuration of projects.", projects.get(0).getDescription());
 		Assertions.assertEquals("fr.company1:project1", projects.get(1).getKey());
-		Assertions.assertEquals(16010, projects.get(1).getId().intValue());
+		Assertions.assertEquals("16010", projects.get(1).getId());
+	}
+
+
+	@Test
+	void findProjectByName63() throws Exception {
+		mockVersion63();
+		httpServer.stubFor(
+				get(urlEqualTo("/api/projects/search?q=COM")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-projects.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+
+		final var projects = resource.findAllByName("service:qa:sonarqube:bpr", "Com");
+		Assertions.assertEquals(2, projects.size());
+		Assertions.assertEquals("Some1 - Project1", projects.get(1).getName());
+		Assertions.assertEquals("Parent defining top level global configuration of projects.", projects.get(0).getDescription());
+		Assertions.assertEquals("fr.company1:project1", projects.get(1).getKey());
 	}
 }

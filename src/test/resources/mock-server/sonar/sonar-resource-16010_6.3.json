@@ -1,0 +1,39 @@
+{
+  "component": {
+    "key": "fr.company1:project1",
+    "name": "Company1 - Project1",
+    "description": "Parent defining top level global configuration of projects.",
+    "qualifier": "TRK",
+    "measures": [
+      {
+        "metric": "security_review_rating",
+        "value": "5.0",
+        "bestValue": false
+      },
+      {
+        "metric": "reliability_rating",
+        "value": "3.0",
+        "bestValue": false
+      },
+      {
+        "metric": "sqale_rating",
+        "value": "1.0",
+        "bestValue": true
+      },
+      {
+        "metric": "ncloc",
+        "value": "8644.0"
+      },
+      {
+        "metric": "security_rating",
+        "value": "4.0",
+        "bestValue": false
+      },
+      {
+        "metric": "coverage",
+        "value": "100.0",
+        "bestValue": false
+      }
+    ]
+  }
+}

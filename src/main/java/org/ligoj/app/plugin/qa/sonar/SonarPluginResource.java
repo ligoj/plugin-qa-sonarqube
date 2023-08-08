@@ -5,7 +5,10 @@ package org.ligoj.app.plugin.qa.sonar;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.ligoj.app.api.SubscriptionStatusWithData;
 import org.ligoj.app.plugin.qa.QaResource;
@@ -15,14 +18,14 @@ import org.ligoj.app.resource.plugin.AbstractToolPluginResource;
 import org.ligoj.app.resource.plugin.VersionUtils;
 import org.ligoj.bootstrap.core.curl.CurlProcessor;
 import org.ligoj.bootstrap.core.validation.ValidationJsonException;
+import org.ligoj.bootstrap.resource.system.configuration.ConfigurationResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
-
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +41,17 @@ import java.util.stream.Collectors;
 public class SonarPluginResource extends AbstractToolPluginResource implements QaServicePlugin {
 
 	/**
+	 * Default set of metrics collected from Sonar
+	 */
+	public static final String DEFAULT_METRICS = "ncloc,coverage,sqale_rating";
+
+	/**
+	 * Default set of metrics collected from Sonar 6.3+.
+	 * <a href="http://localhost:9000/api/metrics/search">List of metrics</a>
+	 */
+	public static final String DEFAULT_METRICS_63 = DEFAULT_METRICS + ",security_rating,reliability_rating,security_review_rating";
+
+	/**
 	 * Plug-in key.
 	 */
 	public static final String URL = QaResource.SERVICE_URL + "/sonarqube";
@@ -46,6 +60,14 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * Plug-in key.
 	 */
 	public static final String KEY = URL.replace('/', ':').substring(1);
+
+	/**
+	 * Default metrics defined at global level. Will be used to override the default version based metric set.
+	 */
+	public static final String DEFAULT_METRICS_OVERRIDE = KEY + ":default-metrics";
+
+	@Autowired
+	private ConfigurationResource configuration;
 
 	/**
 	 * Version utilities for compare.
@@ -96,14 +118,12 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	protected SonarProject validateProject(final Map<String, String> parameters) throws IOException {
 		// Get project's configuration
-		final var id = Integer.parseInt(ObjectUtils.defaultIfNull(parameters.get(PARAMETER_PROJECT), "0"));
+		final var id = ObjectUtils.defaultIfNull(parameters.get(PARAMETER_PROJECT), "0");
 		final var result = getProject(parameters, id);
-
 		if (result == null) {
 			// Invalid id
 			throw new ValidationJsonException(PARAMETER_PROJECT, "sonar-project", id);
 		}
-
 		return result;
 	}
 
@@ -112,9 +132,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 *
 	 * @param parameters the server parameters.
 	 * @return the detected SonarQube version.
-	 * @throws IOException When JSON parsing failed.
 	 */
-	protected String validateAdminAccess(final Map<String, String> parameters) throws IOException {
+	protected String validateAdminAccess(final Map<String, String> parameters) {
 		final var url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
 		CurlProcessor.validateAndClose(url, PARAMETER_URL, "sonar-connection");
 
@@ -128,16 +147,20 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		final var version = getVersion(parameters);
 		if (StringUtils.isNotBlank(version)) {
 			final String checkRights;
-			if (version.compareTo("6.3.0") < 0) {
-				checkRights = getResource(parameters, "provisioning");
-			} else {
+			if (is63API(version)) {
 				checkRights = getResource(parameters, "api/projects/search");
+			} else {
+				checkRights = getResource(parameters, "provisioning");
 			}
 			if (checkRights == null) {
 				throw new ValidationJsonException(PARAMETER_USER, "sonar-rights");
 			}
 		}
 		return version;
+	}
+
+	private boolean is63API(final String version) {
+		return version != null && version.compareTo("6.3.0") >= 0;
 	}
 
 	/**
@@ -174,13 +197,19 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Return all SonarQube project without limit.
 	 *
-	 * @param parameters The subscription parameters.
+	 * @param parameters     The subscription parameters.
+	 * @param formatCriteria Optional criteria
 	 * @return The gathered SonarQube projects data.
 	 * @throws IOException When JSON parsing failed.
 	 */
-	protected List<SonarProject> getProjects(final Map<String, String> parameters) throws IOException {
-		http:
-//localhost:9000/api/projects/search?q=boot
+	protected List<SonarProject> getProjects(final Map<String, String> parameters, final String formatCriteria) throws IOException {
+		final var version = getVersion(parameters);
+		if (is63API(version)) {
+			return new ObjectMapper().readValue(getResource(parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
+					new TypeReference<SonarProjectList>() {
+						// Nothing to override
+					}).getComponents();
+		}
 		return new ObjectMapper().readValue(getResource(parameters, "api/resources?format=json"),
 				new TypeReference<>() {
 					// Nothing to override
@@ -191,24 +220,40 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * Return SonarQube project from its identifier.
 	 *
 	 * @param parameters The subscription parameters.
-	 * @param id         The SonarQube project identifier.
+	 * @param id         The SonarQube project identifier (internal id or key).
 	 * @return The gathered SonarQube data.
 	 * @throws IOException When JSON parsing failed.
 	 */
-	protected SonarProject getProject(final Map<String, String> parameters, final int id) throws IOException {
-		final String projectAsJson = getResource(parameters,
-				"api/resources?format=json&resource=" + id + "&metrics=ncloc,coverage,sqale_rating");
+	protected SonarProject getProject(final Map<String, String> parameters, final String id) throws IOException {
+		final var version = getVersion(parameters);
+		final String encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8);
+		final String projectAsJson;
+		if (is63API(version)) {
+			projectAsJson = getResource(parameters, "api/measures/component?component=" + encodedId
+					+ "&metricKeys=" + configuration.get(DEFAULT_METRICS_OVERRIDE, DEFAULT_METRICS_63));
+		} else {
+			projectAsJson = getResource(parameters, "api/resources?format=json&resource=" + encodedId
+					+ "&metrics=" + configuration.get(DEFAULT_METRICS_OVERRIDE, DEFAULT_METRICS));
+		}
 		if (projectAsJson == null) {
 			return null;
 		}
 
 		// Parse and build the project from the JSON
-		final SonarProject project = new ObjectMapper()
-				.readValue(StringUtils.removeEnd(StringUtils.removeStart(projectAsJson, "["), "]"), SonarProject.class);
-
+		final SonarProject project;
+		if (is63API(version)) {
+			project = new ObjectMapper()
+					.readValue(StringUtils.removeEnd(projectAsJson
+							.replaceAll("\n", "")
+							.replaceAll("\r", "")
+							.replaceFirst("\\{[ \t]*\"component\"[ \t]*:[ \t]*\\{", "{"), "}"), SonarProject.class);
+		} else {
+			project = new ObjectMapper()
+					.readValue(StringUtils.removeEnd(StringUtils.removeStart(projectAsJson, "["), "]"), SonarProject.class);
+		}
 		// Map nicely the measures
-		project.setMeasures(
-				project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, SonarMeasure::getValue)));
+		project.setMeasuresAsMap(
+				project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, v-> (int)v.getValue())));
 		project.setRawMeasures(null);
 		return project;
 	}
@@ -234,11 +279,14 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		final var parameters = pvResource.getNodeParameters(node);
 
 		// Get the projects and parse them
-		final var projectsRaw = getProjects(parameters);
+		final var projectsRaw = getProjects(parameters, formatCriteria);
 		final var result = new TreeMap<String, SonarProject>();
 		for (final var project : projectsRaw) {
 			final var name = StringUtils.trimToNull(project.getName());
 			final var key = project.getKey();
+			if (project.getId() == null) {
+				project.setId(project.getKey());
+			}
 
 			// Check the values of this project
 			if (format.format(name).contains(formatCriteria) || format.format(key).contains(formatCriteria)) {
@@ -268,7 +316,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	}
 
 	@Override
-	public boolean checkStatus(final Map<String, String> parameters) throws Exception {
+	public boolean checkStatus(final Map<String, String> parameters) {
 		// Status is UP <=> Administration access is UP
 		validateAdminAccess(parameters);
 		return true;
