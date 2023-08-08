@@ -17,7 +17,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SonarMesure implements Serializable {
+public class SonarMeasure implements Serializable {
 
 	/**
 	 * SID

@@ -55,9 +55,12 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		persistEntities("csv", new Class[]{Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class},
 				StandardCharsets.UTF_8);
 		this.subscription = getSubscription("gStack");
+	}
 
+	@Test
+	void getKey() {
 		// Coverage only
-		resource.getKey();
+		Assertions.assertEquals("",resource.getKey());
 	}
 
 	/**

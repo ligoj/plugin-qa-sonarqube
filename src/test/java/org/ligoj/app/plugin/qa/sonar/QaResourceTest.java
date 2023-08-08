@@ -50,9 +50,12 @@ public class QaResourceTest extends AbstractAppTest {
 		persistEntities("csv",
 				new Class[] { Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class, },
 				StandardCharsets.UTF_8);
+	}
 
+	@Test
+	void getKey() {
 		// Coverage only
-		resource.getKey();
+		Assertions.assertEquals("",resource.getKey());
 	}
 
 	@Test

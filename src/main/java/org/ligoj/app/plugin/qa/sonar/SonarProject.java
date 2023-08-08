@@ -35,7 +35,7 @@ public class SonarProject extends NamedBean<Integer> implements IDescribableBean
 	 * SonarQube raw structure.
 	 */
 	@JsonProperty("msr")
-	private List<SonarMesure> rawMesures;
+	private List<SonarMeasure> rawMeasures;
 
 	/**
 	 * Mapped values for easiest traversals.
@@ -43,7 +43,7 @@ public class SonarProject extends NamedBean<Integer> implements IDescribableBean
 	private Map<String, Integer> measures;
 
 	/**
-	 * Human readable key
+	 * Human-readable key
 	 */
 	private String key;
 

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -88,7 +89,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	/**
 	 * Validate the project connectivity.
-	 * 
+	 *
 	 * @param parameters the project parameters.
 	 * @return project details.
 	 * @throws IOException When JSON parsing failed.
@@ -108,7 +109,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	/**
 	 * Validate the basic REST connectivity to SonarQube.
-	 * 
+	 *
 	 * @param parameters the server parameters.
 	 * @return the detected SonarQube version.
 	 * @throws IOException When JSON parsing failed.
@@ -117,8 +118,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		final var url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
 		CurlProcessor.validateAndClose(url, PARAMETER_URL, "sonar-connection");
 
-		// Check the user can logins to SonarQube with the preempted authentication
-		// processor
+		// Check the user can logins to SonarQube with the preempted authentication processor
 		if (!StringUtils.trimToEmpty(getResource(parameters, "api/authentication/validate?format=json"))
 				.contains("true")) {
 			throw new ValidationJsonException(PARAMETER_USER, "sonar-login");
@@ -134,7 +134,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Return a SonarQube's resource. Return <code>null</code> when the resource is
 	 * not found.
-	 * 
+	 *
 	 * @param parameters The subscription parameters.
 	 * @param resource   The SonarQube resource URL to query.
 	 * @return The JSON data.
@@ -146,7 +146,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Return a SonarQube's resource. Return <code>null</code> when the resource is
 	 * not found.
-	 * 
+	 *
 	 * @param processor The CURL processor.
 	 * @param url       The base URL.
 	 * @param resource  The SonarQube resource URL to query.
@@ -166,7 +166,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	/**
 	 * Return all SonarQube project without limit.
-	 * 
+	 *
 	 * @param parameters The subscription parameters.
 	 * @return The gathered SonarQube projects data.
 	 * @throws IOException When JSON parsing failed.
@@ -180,7 +180,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	/**
 	 * Return SonarQube project from its identifier.
-	 * 
+	 *
 	 * @param parameters The subscription parameters.
 	 * @param id         The SonarQube project identifier.
 	 * @return The gathered SonarQube data.
@@ -199,15 +199,15 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 		// Map nicely the measures
 		project.setMeasures(
-				project.getRawMesures().stream().collect(Collectors.toMap(SonarMesure::getKey, SonarMesure::getValue)));
-		project.setRawMesures(null);
+				project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, SonarMeasure::getValue)));
+		project.setRawMeasures(null);
 		return project;
 	}
 
 	/**
 	 * Search the SonarQube's projects matching to the given criteria. Name, display
 	 * name and description are considered.
-	 * 
+	 *
 	 * @param node     the node to be tested with given parameters.
 	 * @param criteria the search criteria.
 	 * @return project names matching the criteria.
