@@ -60,7 +60,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	@Test
 	void getKey() {
 		// Coverage only
-		Assertions.assertEquals("",resource.getKey());
+		Assertions.assertEquals("service:qa:sonarqube",resource.getKey());
 	}
 
 	/**
@@ -83,9 +83,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void getVersion() throws Exception {
-		httpServer.stubFor(get(urlEqualTo("/api/server/index?format=json"))
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-index.json").getInputStream(), StandardCharsets.UTF_8))));
+						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
 		final String version = resource.getVersion(subscription);
@@ -115,9 +115,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/index?format=json"))
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-index.json").getInputStream(), StandardCharsets.UTF_8))));
+						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=0&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_NOT_FOUND)));
 		httpServer.start();
@@ -134,9 +134,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/index?format=json"))
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-index.json").getInputStream(), StandardCharsets.UTF_8))));
+						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.stubFor(get(urlEqualTo("/api/resources?format=json&resource=16010&metrics=ncloc,coverage,sqale_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
@@ -188,9 +188,9 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/index?format=json"))
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-index.json").getInputStream(), StandardCharsets.UTF_8))));
+						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
 		final Map<String, String> parameters = subscriptionResource.getParametersNoCheck(subscription);
@@ -213,13 +213,28 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
-		httpServer.stubFor(get(urlEqualTo("/api/server/index?format=json"))
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-index.json").getInputStream(), StandardCharsets.UTF_8))));
+						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 
 		final String version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 		Assertions.assertEquals("4.3.2", version);
+	}
+
+	@Test
+	void validateAdminAccess63() throws Exception {
+		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-server-version-6.3.txt").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+
+		final String version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
+		Assertions.assertEquals("9.9.0.65466", version);
 	}
 
 	@Test
@@ -252,11 +267,29 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	void validateAdminAccessNoRight() {
+	void validateAdminAccessNoRight() throws IOException {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () ->
+						resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),
+				SonarPluginResource.PARAMETER_USER, "sonar-rights");
+	}
+
+	@Test
+	void validateAdminAccessNoRight63() throws IOException {
+		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
+		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-server-version-6.3.txt").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
 		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () ->
 						resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),

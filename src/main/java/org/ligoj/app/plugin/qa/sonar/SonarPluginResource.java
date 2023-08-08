@@ -125,10 +125,19 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		}
 
 		// Check the user has enough rights to access to the provisioning page
-		if (getResource(parameters, "provisioning") == null) {
-			throw new ValidationJsonException(PARAMETER_USER, "sonar-rights");
+		final var version = getVersion(parameters);
+		if (StringUtils.isNotBlank(version)) {
+			final String checkRights;
+			if (version.compareTo("6.3.0") < 0) {
+				checkRights = getResource(parameters, "provisioning");
+			} else {
+				checkRights = getResource(parameters, "api/projects/search");
+			}
+			if (checkRights == null) {
+				throw new ValidationJsonException(PARAMETER_USER, "sonar-rights");
+			}
 		}
-		return getVersion(parameters);
+		return version;
 	}
 
 	/**
@@ -158,10 +167,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	}
 
 	@Override
-	public String getVersion(final Map<String, String> parameters) throws IOException {
-		final var sonarVersionAsJson = ObjectUtils
-				.defaultIfNull(getResource(parameters, "api/server/index?format=json"), "{}");
-		return (String) new ObjectMapper().readValue(sonarVersionAsJson, Map.class).get("version");
+	public String getVersion(final Map<String, String> parameters) {
+		return getResource(parameters, "api/server/version");
 	}
 
 	/**
@@ -172,6 +179,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @throws IOException When JSON parsing failed.
 	 */
 	protected List<SonarProject> getProjects(final Map<String, String> parameters) throws IOException {
+		http:
+//localhost:9000/api/projects/search?q=boot
 		return new ObjectMapper().readValue(getResource(parameters, "api/resources?format=json"),
 				new TypeReference<>() {
 					// Nothing to override
