@@ -53,7 +53,7 @@ define(function () {
                 return 0;
             }).map(m => {
 			    let value = subscription.data.project.measuresAsMap[m];
-			    let color = null;
+			    let addClass = `metric metric-${m} label label-`;
 			    let description = current.$messages[`service:qa:sonarqube:metric:${m}`];
 			    let unit = current.$messages[`service:qa:sonarqube:metric:${m}:unit`];
 			    let shortMetricName = m;
@@ -61,14 +61,32 @@ define(function () {
 			    if (m.endsWith('_rating')) {
 			        const shortMetricName = m.substring(0, m.length-'_rating'.length);
 			        description = description || current.$messages[`service:qa:sonarqube:metric:${shortMetricName}`] || shortMetricName;
-    			    color = value && ['success', 'primary', 'warning', 'danger', 'danger', 'danger'][Math.floor(value) - 1];
+    			    addClass += value && ['success', 'primary', 'warning', 'danger', 'danger', 'danger'][Math.floor(value) - 1] || 'default';
     			    displayValue = String.fromCharCode(64 + value);
-                }
-                if (value > 1000) {
+                } else if (m.endsWith('ncloc')) {
+                    if (value < 1000) {
+                        displayValue = 'S';
+                    } else if (value < 10000) {
+                        displayValue = 'S';
+                    } else if (value < 100000) {
+                        displayValue = 'M';
+                    } else if (value < 500000) {
+                        displayValue = 'L';
+                    } else {
+                        displayValue = 'XL';
+                    }
+                    description += ` (${1000})`;
+                } else if (value > 1000) {
                     displayValue = Math.round(value/1000);
                     unit = 'K';
+                    addClass += 'default';
+                    description += ` (${1000})`;
                 }
-                return `<span data-toggle="tooltip" title="${description||shortMetricName}" class="label label-${color||'default'}">${displayValue}${unit||''}</span>`;
+                if (m !== shortMetricName) {
+			        addClass += ` ${shortMetricName}`;
+			    }
+
+                return `<span data-toggle="tooltip" title="${description||shortMetricName}" class="${addClass}">${displayValue}${unit||''}</span>`;
             }).join(' ');
 		}
 	};

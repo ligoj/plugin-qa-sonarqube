@@ -1,5 +1,5 @@
 .masonry-container .node.service-qa-sonarqube table.subscriptions th.features {
-	width: 38px;
+	width: 160px;
 }
 
 .service-qa-sonarqube .features>.details {
@@ -9,4 +9,18 @@
 .service-qa-sonarqube .features>.details .label {
 	padding-left: 4px;
 	padding-right: 5px;
+}
+
+.service-qa-sonarqube .features>.details > .metric.metric-ncloc {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    border-radius: 20px;
+    background-color: #297bae;
+    font-size: 10px;
+    text-align: center;
+    padding-top: 0px;
+    padding-left: 0;
+    padding-right: 0;
 }
