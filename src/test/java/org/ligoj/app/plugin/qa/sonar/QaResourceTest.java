@@ -55,7 +55,7 @@ public class QaResourceTest extends AbstractAppTest {
 	@Test
 	void getKey() {
 		// Coverage only
-		Assertions.assertEquals("",resource.getKey());
+		Assertions.assertEquals("service:qa",resource.getKey());
 	}
 
 	@Test
