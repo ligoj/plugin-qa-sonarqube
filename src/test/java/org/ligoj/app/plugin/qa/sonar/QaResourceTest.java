@@ -49,7 +49,7 @@ public class QaResourceTest extends AbstractAppTest {
 		// Only with Spring context
 		persistEntities("csv",
 				new Class[] { Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class, },
-				StandardCharsets.UTF_8.name());
+				StandardCharsets.UTF_8);
 
 		// Coverage only
 		resource.getKey();

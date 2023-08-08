@@ -56,7 +56,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	protected String versionServer;
 
 	/**
-	 * Sonar user name able to connect to instance.
+	 * Sonar username able to connect to instance.
 	 */
 	public static final String PARAMETER_USER = KEY + ":user";
 
@@ -117,7 +117,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		final var url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
 		CurlProcessor.validateAndClose(url, PARAMETER_URL, "sonar-connection");
 
-		// Check the user can login to SonarQube with the preempted authentication
+		// Check the user can logins to SonarQube with the preempted authentication
 		// processor
 		if (!StringUtils.trimToEmpty(getResource(parameters, "api/authentication/validate?format=json"))
 				.contains("true")) {
@@ -173,7 +173,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	protected List<SonarProject> getProjects(final Map<String, String> parameters) throws IOException {
 		return new ObjectMapper().readValue(getResource(parameters, "api/resources?format=json"),
-				new TypeReference<List<SonarProject>>() {
+				new TypeReference<>() {
 					// Nothing to override
 				});
 	}
