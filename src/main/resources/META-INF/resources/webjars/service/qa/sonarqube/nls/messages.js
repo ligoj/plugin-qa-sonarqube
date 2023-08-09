@@ -12,7 +12,9 @@ define({
 		"service:qa:sonarqube:metric:sqale_rating" : "Maintainability Rating. A-to-E rating based on the technical debt ratio",
 		"service:qa:sonarqube:metric:security_rating" : "Security Rating",
 		"service:qa:sonarqube:metric:reliability_rating" : "Reliability Rating",
-		"service:qa:sonarqube:metric:security_review_rating" : "Security Review Rating"
+		"service:qa:sonarqube:metric:security_review_rating" : "Security Review Rating",
+		"service:qa:sonarqube:pull-request" : "Pull Request",
+		"service:qa:sonarqube:branch" : "Branch"
 	},
 	"fr" : true
 });

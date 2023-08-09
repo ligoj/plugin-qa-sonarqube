@@ -11,4 +11,6 @@ define({
     "service:qa:sonarqube:metric:security_rating" : "Indicateur de sécurité",
     "service:qa:sonarqube:metric:reliability_rating" : "Indicateur de robustesse",
     "service:qa:sonarqube:metric:security_review_rating" : "Indicateur de revue de sécurité"
+    "service:qa:sonarqube:metric:security_review_rating" : "Security Review Rating",
+    "service:qa:sonarqube:branch" : "Branche"
 });
