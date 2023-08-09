@@ -26,7 +26,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 
@@ -58,15 +57,21 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	}
 
 	private void mockVersion() throws IOException {
-		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
-				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version.txt").getInputStream(), StandardCharsets.UTF_8))));
+		mockVersion("");
 	}
 
 	private void mockVersion63() throws IOException {
+		mockVersion("-6.3");
+	}
+
+	private void mockVersion66() throws IOException {
+		mockVersion("-6.6");
+	}
+
+	private void mockVersion(String version) throws IOException {
 		httpServer.stubFor(get(urlEqualTo("/api/server/version"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
-						new ClassPathResource("mock-server/sonar/sonar-server-version-6.3.txt").getInputStream(), StandardCharsets.UTF_8))));
+						new ClassPathResource("mock-server/sonar/sonar-server-version" + version + ".txt").getInputStream(), StandardCharsets.UTF_8))));
 	}
 
 	private void mockSession() {
@@ -104,7 +109,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		mockVersion();
 		httpServer.start();
 
-		final String version = resource.getVersion(subscription);
+		final var version = resource.getVersion(subscription);
 		Assertions.assertEquals("4.3.2", version);
 	}
 
@@ -185,9 +190,6 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		// Invoke create for an already created entity, since for now, there is
 		// nothing but validation pour SonarQube
 		resource.link(subscription.getId());
-
-		// Nothing to validate for now...
-
 	}
 
 	@Test
@@ -197,7 +199,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010.json").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
-		final var project =validateProject("16010");
+		final var project = validateProject("16010", null, null);
 		Assertions.assertEquals("16010", project.getId());
 	}
 
@@ -208,13 +210,62 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010_6.3.json").getInputStream(), StandardCharsets.UTF_8))));
 		httpServer.start();
-		final var project = validateProject("fr.company1:project1");
+		final var project = validateProject("fr.company1:project1", null, null);
 		Assertions.assertEquals("fr.company1:project1", project.getKey());
 	}
 
-	private SonarProject validateProject(final String id) throws IOException {
+
+	@Test
+	void validateProject66() throws Exception {
+		mockVersion66();
+		mockSession();
+		httpServer.stubFor(get(urlEqualTo("/api/measures/component?component=fr.company1%3Aproject1&metricKeys=ncloc,coverage"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-resource-16010_6.3.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.stubFor(get(urlEqualTo("/api/project_branches/list?project=fr.company1%3Aproject1"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-branches.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+		final var project = validateProject("fr.company1:project1", "3", "ncloc,coverage");
+		Assertions.assertEquals("fr.company1:project1", project.getKey());
+
+		// Check branches size and ordering
+		Assertions.assertEquals(3, project.getBranches().size());
+		final var mainBranch = project.getBranches().get(0);
+		Assertions.assertTrue(mainBranch.isMain());
+		Assertions.assertEquals("main", mainBranch.getName());
+		Assertions.assertEquals("2023-08-08T10:11:18+0000", mainBranch.getAnalysisDate());
+		Assertions.assertEquals("BRANCH", mainBranch.getType());
+		Assertions.assertEquals("OK", mainBranch.getStatus().get("qualityGateStatus"));
+
+		 var nextBranch = project.getBranches().get(1);
+		Assertions.assertFalse(nextBranch.isMain());
+		Assertions.assertEquals("features/1", nextBranch.getName());
+		Assertions.assertEquals("2023-08-08T17:12:31+0000", nextBranch.getAnalysisDate());
+		Assertions.assertEquals("BRANCH", nextBranch.getType());
+
+		nextBranch = project.getBranches().get(2);
+		Assertions.assertFalse(nextBranch.isMain());
+		Assertions.assertEquals("pr/34", nextBranch.getName());
+		Assertions.assertEquals("2023-08-08T16:12:31+0000", nextBranch.getAnalysisDate());
+		Assertions.assertEquals("PULL_REQUEST", nextBranch.getType());
+		Assertions.assertEquals("main", nextBranch.getTargetBranchName());
+		Assertions.assertEquals("34", nextBranch.getPullRequestKey());
+	}
+
+	private SonarProject validateProject(final String id, final String maxBranches, final String metrics) throws IOException {
 		final var parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
 		parameters.put(SonarPluginResource.PARAMETER_PROJECT, id);
+		if (maxBranches == null) {
+			parameters.remove(SonarPluginResource.PARAMETER_MAX_BRANCHES);
+		} else {
+			parameters.put(SonarPluginResource.PARAMETER_MAX_BRANCHES, maxBranches);
+		}
+		if (metrics == null) {
+			parameters.remove(SonarPluginResource.PARAMETER_METRICS_OVERRIDE);
+		} else {
+			parameters.put(SonarPluginResource.PARAMETER_METRICS_OVERRIDE, metrics);
+		}
 		final var project = resource.validateProject(parameters);
 		Assertions.assertEquals("Company1 - Project1", project.getName());
 		Assertions.assertEquals("Parent defining top level global configuration of projects.", project.getDescription());
@@ -231,7 +282,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
 		httpServer.start();
 
-		final Map<String, String> parameters = subscriptionResource.getParametersNoCheck(subscription);
+		final var parameters = subscriptionResource.getParametersNoCheck(subscription);
 		parameters.remove(SonarPluginResource.PARAMETER_PROJECT);
 		Assertions.assertTrue(resource.checkStatus(parameters));
 	}
@@ -253,7 +304,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/provisioning")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
 		httpServer.start();
 
-		final String version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
+		final var version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 		Assertions.assertEquals("4.3.2", version);
 	}
 
@@ -264,8 +315,8 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
 		httpServer.start();
 
-		final String version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
-		Assertions.assertEquals("9.9.0.65466", version);
+		final var version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
+		Assertions.assertEquals("6.3.0.65466", version);
 	}
 
 	@Test

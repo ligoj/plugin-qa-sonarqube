@@ -6,6 +6,7 @@ package org.ligoj.app.plugin.qa.sonar;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 import org.ligoj.bootstrap.core.IDescribableBean;
@@ -35,13 +36,18 @@ public class SonarProject extends NamedBean<String> implements IDescribableBean<
 	 */
 	@JsonProperty("msr")
 	@JsonAlias("measures")
+	@Transient
 	private List<SonarMeasure> rawMeasures;
 
 	/**
 	 * Mapped values for easiest traversals.
 	 */
-	@JsonIgnoreProperties(allowSetters = false, allowGetters = true)
 	private Map<String, Integer> measuresAsMap;
+
+	/**
+	 * List of branches.
+	 */
+	private List<SonarBranch> branches;
 
 	/**
 	 * Human-readable key

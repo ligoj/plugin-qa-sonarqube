@@ -4,12 +4,11 @@
 package org.ligoj.app.plugin.qa.sonar;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.RegExUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.ligoj.app.api.SubscriptionStatusWithData;
 import org.ligoj.app.plugin.qa.QaResource;
 import org.ligoj.app.plugin.qa.QaServicePlugin;
@@ -17,6 +16,7 @@ import org.ligoj.app.resource.NormalizeFormat;
 import org.ligoj.app.resource.plugin.AbstractToolPluginResource;
 import org.ligoj.app.resource.plugin.VersionUtils;
 import org.ligoj.bootstrap.core.curl.CurlProcessor;
+import org.ligoj.bootstrap.core.json.ObjectMapperTrim;
 import org.ligoj.bootstrap.core.validation.ValidationJsonException;
 import org.ligoj.bootstrap.resource.system.configuration.ConfigurationResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,10 +26,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -64,19 +61,19 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Default metrics defined at global level. Will be used to override the default version based metric set.
 	 */
-	public static final String DEFAULT_METRICS_OVERRIDE = KEY + ":default-metrics";
-
-	@Autowired
-	private ConfigurationResource configuration;
+	public static final String PARAMETER_METRICS_OVERRIDE = KEY + ":metrics";
 
 	/**
-	 * Version utilities for compare.
+	 * Maximum returned branches.
 	 */
-	@Autowired
-	protected VersionUtils versionUtils;
+	public static final String PARAMETER_MAX_BRANCHES = KEY + ":max-branches";
 
-	@Value("${sonar.jira.url:https://sonarsource.atlassian.net}")
-	protected String versionServer;
+
+	/**
+	 * Default maximum returned branches.
+	 */
+	public static final int DEFAULT_MAX_BRANCHES = 10;
+
 
 	/**
 	 * Sonar username able to connect to instance.
@@ -97,6 +94,21 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * Web site URL
 	 */
 	public static final String PARAMETER_URL = KEY + ":url";
+
+	@Autowired
+	private ObjectMapperTrim objectMapper;
+
+	@Autowired
+	private ConfigurationResource configuration;
+
+	/**
+	 * Version utilities for compare.
+	 */
+	@Autowired
+	protected VersionUtils versionUtils;
+
+	@Value("${sonar.jira.url:https://sonarsource.atlassian.net}")
+	protected String versionServer;
 
 	@Override
 	public void link(final int subscription) throws Exception {
@@ -163,6 +175,10 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		return version != null && version.compareTo("6.3.0") >= 0;
 	}
 
+	private boolean is66API(final String version) {
+		return version != null && version.compareTo("6.6.0") >= 0;
+	}
+
 	/**
 	 * Return a SonarQube's resource. Return <code>null</code> when the resource is
 	 * not found.
@@ -194,6 +210,10 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		return getResource(parameters, "api/server/version");
 	}
 
+	private String getParameter(final Map<String, String> parameters, final String parameter, final String defaultValue) {
+		return Objects.requireNonNullElseGet(parameters.get(parameter), () -> configuration.get(PARAMETER_METRICS_OVERRIDE, defaultValue));
+	}
+
 	/**
 	 * Return all SonarQube project without limit.
 	 *
@@ -205,12 +225,12 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	protected List<SonarProject> getProjects(final Map<String, String> parameters, final String formatCriteria) throws IOException {
 		final var version = getVersion(parameters);
 		if (is63API(version)) {
-			return new ObjectMapper().readValue(getResource(parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
+			return objectMapper.readValue(getResource(parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
 					new TypeReference<SonarProjectList>() {
 						// Nothing to override
 					}).getComponents();
 		}
-		return new ObjectMapper().readValue(getResource(parameters, "api/resources?format=json"),
+		return objectMapper.readValue(getResource(parameters, "api/resources?format=json"),
 				new TypeReference<>() {
 					// Nothing to override
 				});
@@ -227,35 +247,62 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	protected SonarProject getProject(final Map<String, String> parameters, final String id) throws IOException {
 		final var version = getVersion(parameters);
 		final String encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8);
-		final String projectAsJson;
+		List<SonarBranch> branches = Collections.emptyList();
+
+		// Get the JSON project
+		final String queryUrl, defaultMetrics;
 		if (is63API(version)) {
-			projectAsJson = getResource(parameters, "api/measures/component?component=" + encodedId
-					+ "&metricKeys=" + configuration.get(DEFAULT_METRICS_OVERRIDE, DEFAULT_METRICS_63));
+			queryUrl = "api/measures/component?component=" + encodedId + "&metricKeys=";
+			defaultMetrics = DEFAULT_METRICS_63;
 		} else {
-			projectAsJson = getResource(parameters, "api/resources?format=json&resource=" + encodedId
-					+ "&metrics=" + configuration.get(DEFAULT_METRICS_OVERRIDE, DEFAULT_METRICS));
+			queryUrl = "api/resources?format=json&resource=" + encodedId + "&metrics=";
+			defaultMetrics = DEFAULT_METRICS;
 		}
+		String projectAsJson = getResource(parameters, queryUrl + getParameter(parameters, PARAMETER_METRICS_OVERRIDE, defaultMetrics));
 		if (projectAsJson == null) {
 			return null;
 		}
 
-		// Parse and build the project from the JSON
+		// Parse the JSON project from the JSON
 		final SonarProject project;
 		if (is63API(version)) {
-			project = new ObjectMapper()
-					.readValue(StringUtils.removeEnd(projectAsJson
-							.replaceAll("\n", "")
-							.replaceAll("\r", "")
-							.replaceFirst("\\{[ \t]*\"component\"[ \t]*:[ \t]*\\{", "{"), "}"), SonarProject.class);
+			project = objectMapper.readValue(unwrap(projectAsJson), SonarProject.class);
+			if (is66API(version)) {
+				// Parse and build the project's branches from the JSON
+				final int maxBranches = NumberUtils.toInt(getParameter(parameters, PARAMETER_MAX_BRANCHES, String.valueOf(DEFAULT_MAX_BRANCHES)));
+				if (maxBranches > 1) {
+					final var branchesAsJson = getResource(parameters, "api/project_branches/list?project=" + encodedId);
+					branches = objectMapper.readValue(unwrap(Objects.requireNonNullElse(branchesAsJson, "{}")),
+									new TypeReference<List<SonarBranch>>() {
+										// Nothing to override
+									}).stream()
+							.sorted((b1, b2) -> {
+								// Sort the branches by their activities
+								if (b1.isMain()) {
+									return -1;
+								}
+								if (b2.isMain()) {
+									return 1;
+								}
+								return StringUtils.compare(b2.getAnalysisDate(), b1.getAnalysisDate());
+							}).limit(maxBranches).collect(Collectors.toList());
+				}
+			}
 		} else {
-			project = new ObjectMapper()
-					.readValue(StringUtils.removeEnd(StringUtils.removeStart(projectAsJson, "["), "]"), SonarProject.class);
+			project = objectMapper.readValue(StringUtils.removeEnd(StringUtils.removeStart(projectAsJson, "["), "]"), SonarProject.class);
 		}
+
 		// Map nicely the measures
-		project.setMeasuresAsMap(
-				project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, v-> (int)v.getValue())));
+		project.setMeasuresAsMap(project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, v -> (int) v.getValue())));
+		project.setBranches(branches);
 		project.setRawMeasures(null);
 		return project;
+	}
+
+	private String unwrap(final String original) {
+		return original == null ? null : StringUtils.removeEnd(original
+				.replace("\n", "").replace("\r", "")
+				.replaceFirst("\\{[ \t]*\"[a-zA-Z0-9_-]+\"[ \t]*:[ \t]*", ""), "}");
 	}
 
 	/**

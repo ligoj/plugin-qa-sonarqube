@@ -1,0 +1,46 @@
+{
+  "branches": [
+    {
+      "name": "pr/34",
+      "isMain": false,
+      "type": "PULL_REQUEST",
+      "pullRequestKey": "34",
+      "status": {
+        "qualityGateStatus": "OK"
+      },
+      "targetBranchName": "main",
+      "analysisDate": "2023-08-08T16:12:31+0000",
+      "excludedFromPurge": false
+    },
+    {
+      "name": "main",
+      "isMain": true,
+      "type": "BRANCH",
+      "status": {
+        "qualityGateStatus": "OK"
+      },
+      "analysisDate": "2023-08-08T10:11:18+0000",
+      "excludedFromPurge": true
+    },
+    {
+      "name": "features/1",
+      "isMain": false,
+      "type": "BRANCH",
+      "status": {
+        "qualityGateStatus": "OK"
+      },
+      "analysisDate": "2023-08-08T17:12:31+0000",
+      "excludedFromPurge": false
+    },
+    {
+      "name": "features/old",
+      "isMain": false,
+      "type": "BRANCH",
+      "status": {
+        "qualityGateStatus": "OK"
+      },
+      "analysisDate": "2023-08-08T15:12:31+0000",
+      "excludedFromPurge": false
+    }
+  ]
+}
