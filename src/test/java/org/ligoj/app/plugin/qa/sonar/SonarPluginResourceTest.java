@@ -53,7 +53,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		// Only with Spring context
 		persistEntities("csv", new Class[]{Node.class, Parameter.class, Project.class, Subscription.class, ParameterValue.class},
 				StandardCharsets.UTF_8);
-		this.subscription = getSubscription("gStack");
+		this.subscription = getSubscription("Jupiter");
 	}
 
 	private void mockVersion() throws IOException {
