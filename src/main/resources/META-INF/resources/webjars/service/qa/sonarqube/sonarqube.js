@@ -33,11 +33,8 @@ define(function () {
 			], 1);
 		},
 
-		/**
-		 * Display the Sqale rating : A...E
-		 */
-		renderDetailsFeatures: function (subscription) {
-		    const result = Object.keys(subscription.data.project?.measuresAsMap||{}).sort((m1, m2) => {
+            renderMetrics: function(subscription, project) {
+		    const metricsHtml = Object.keys(project?.measuresAsMap||{}).sort((m1, m2) => {
                 if( m1.endsWith('_rating')) {
                     m1 = "_" + m1;
                 }
@@ -52,20 +49,20 @@ define(function () {
                 }
                 return 0;
             }).map(m => {
-			    let value = subscription.data.project.measuresAsMap[m];
-			    let addClass = `metric metric-${m} label label-`;
-			    let description = current.$messages[`service:qa:sonarqube:metric:${m}`];
-			    let unit = current.$messages[`service:qa:sonarqube:metric:${m}:unit`];
-			    let shortMetricName = m;
-			    let displayValue = value;
-			    if (m.endsWith('_rating')) {
-			        const shortMetricName = m.substring(0, m.length-'_rating'.length);
-			        description = description || current.$messages[`service:qa:sonarqube:metric:${shortMetricName}`] || shortMetricName;
-    			    addClass += value && ['success', 'primary', 'warning', 'danger', 'danger', 'danger'][Math.floor(value) - 1] || 'default';
-    			    displayValue = String.fromCharCode(64 + value);
+                let value = project.measuresAsMap[m];
+                let addClass = `metric metric-${m} label label-`;
+                let description = current.$messages[`service:qa:sonarqube:metric:${m}`];
+                let unit = current.$messages[`service:qa:sonarqube:metric:${m}:unit`];
+                let shortMetricName = m;
+                let displayValue = value;
+                if (m.endsWith('_rating')) {
+                    const shortMetricName = m.substring(0, m.length-'_rating'.length);
+                    description = description || current.$messages[`service:qa:sonarqube:metric:${shortMetricName}`] || shortMetricName;
+                    addClass += value && ['success', 'primary', 'warning', 'danger', 'danger', 'danger'][Math.floor(value) - 1] || 'default';
+                    displayValue = String.fromCharCode(64 + value);
                 } else if (m.endsWith('ncloc')) {
                     if (value < 1000) {
-                        displayValue = 'S';
+                        displayValue = 'XS';
                     } else if (value < 10000) {
                         displayValue = 'S';
                     } else if (value < 100000) {
@@ -75,39 +72,58 @@ define(function () {
                     } else {
                         displayValue = 'XL';
                     }
-                    description += ` (${1000})`;
-                } else if (value > 1000) {
-                    displayValue = Math.round(value/1000);
-                    unit = 'K';
+                    description += `: ${value}`;
+                } else {
+                    if (value > 1000000) {
+                        displayValue = Math.round(value/1000000000);
+                        unit = 'G';
+                    } else if (value > 1000000) {
+                        displayValue = Math.round(value/1000000);
+                        unit = 'M';
+                    } else if (value > 1000) {
+                         displayValue = Math.round(value/1000);
+                         unit = 'K';
+                    }
                     addClass += 'default';
-                    description += ` (${1000})`;
+                    description += `: ${displayValue}`;
                 }
                 if (m !== shortMetricName) {
-			        addClass += ` ${shortMetricName}`;
-			    }
+                    addClass += ` ${shortMetricName}`;
+                }
 
                 return `<span data-toggle="tooltip" title="${description||shortMetricName}" class="${addClass}">${displayValue}${unit||''}</span>`;
             }).join(' ');
-            return result + (subscription.data.project?.branches||[]).map(b=> {
-                var parameter;
-                var tooltip=`${b.type}<br>${current.$messages.name}: ${b.name}`
-                if (b.pullRequestKey) {
-                    parameter=`pullRequest=${b.pullRequestKey}`;
-                    tooltip+=`<br>${current.$messages['service:qa:sonarqube:pull-request']} <i class='fas fa-hashtag'></i> ${b.pullRequestKey}`
-                    tooltip+=`<br><i class='fas fa-arrow-right'></i> ${b.targetBranchName}`
-                } else {
-                    parameter=`branch=${encodeURIComponent(b.name)}`
-                }
-                if (b?.status?.qualityGateStatus =="OK") {
-                    tooltip+=`<br><i class='far fa-calendar-check text-success'></i> ${b.analysisDate}`;
-                } else {
-                    tooltip+=`<br><i class='far fa-calendar-times text-danger'></i> ${b.analysisDate}`;
-                }
-                // (icon, link, tooltipKey, textKey, attr, clazz)
-                const url = current.$super('renderServiceLink')(b.pullRequestKey?'hashtag':'code-branch', `${subscription.parameters['service:qa:sonarqube:url']}/dashboard?id=${encodeURIComponent(subscription.parameters['service:qa:sonarqube:project'])}&${parameter}`, tooltip, b.pullRequestKey || b.name, ' target=\'_blank\'')
+            if (metricsHtml.length) {
+                return `<div class="metrics-wrapper">${metricsHtml}</div>`;
+            }
+            return ''
+        },
 
-                return `<p>${url}</p>`;
+		/**
+		 * Display the Sqale rating : A...E
+		 */
+		renderDetailsFeatures: function (subscription) {
+		    const result = current.renderMetrics(subscription, subscription.data.project);
+		    const branches = (subscription.data.project?.branches||[]).filter(b => !b.isMain).map(b=> {
+                 var parameter;
+                 var tooltip=`${b.type}<br>${current.$messages.name}: ${b.name}`
+                 if (b.pullRequestKey) {
+                     parameter=`pullRequest=${b.pullRequestKey}`;
+                     tooltip+=`<br>${current.$messages['service:qa:sonarqube:pull-request']} <i class='fas fa-hashtag'></i> ${b.pullRequestKey}`
+                     tooltip+=`<br><i class='fas fa-arrow-right'></i> ${b.targetBranchName}`
+                 } else {
+                     parameter=`branch=${encodeURIComponent(b.name)}`
+                 }
+                 if (b?.status?.qualityGateStatus =="OK") {
+                     tooltip+=`<br><i class='far fa-calendar-check text-success'></i> ${b.analysisDate}`;
+                 } else {
+                     tooltip+=`<br><i class='far fa-calendar-times text-danger'></i> ${b.analysisDate}`;
+                 }
+                 const url = current.$super('renderServiceLink')(b.pullRequestKey?'hashtag':'code-branch', `${subscription.parameters['service:qa:sonarqube:url']}/dashboard?id=${encodeURIComponent(subscription.parameters['service:qa:sonarqube:project'])}&${parameter}`, tooltip, b.pullRequestKey || b.name, ' target=\'_blank\'', 'link')
+                 let branchMetrics = current.renderMetrics(subscription, b);
+                 return `<div class="branch">${url}${branchMetrics}</div>`;
             }).join(' ');
+            return result + `${branches ? `<div class="branches">${branches}</div>`: ''}`;
 		}
 	};
 	return current;

@@ -3,9 +3,12 @@
  */
 package org.ligoj.app.plugin.qa.sonar;
 
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -35,6 +38,7 @@ import java.util.stream.Collectors;
 @Path(SonarPluginResource.URL)
 @Service
 @Produces(MediaType.APPLICATION_JSON)
+@Slf4j
 public class SonarPluginResource extends AbstractToolPluginResource implements QaServicePlugin {
 
 	/**
@@ -67,6 +71,11 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * Maximum returned branches.
 	 */
 	public static final String PARAMETER_MAX_BRANCHES = KEY + ":max-branches";
+
+	/**
+	 * Metrics retrieved from each branch
+	 */
+	public static final String PARAMETER_METRICS_BRANCHES = KEY + ":metrics-branches";
 
 
 	/**
@@ -258,7 +267,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 			queryUrl = "api/resources?format=json&resource=" + encodedId + "&metrics=";
 			defaultMetrics = DEFAULT_METRICS;
 		}
-		String projectAsJson = getResource(parameters, queryUrl + getParameter(parameters, PARAMETER_METRICS_OVERRIDE, defaultMetrics));
+		var projectAsJson = getResource(parameters, queryUrl + getParameter(parameters, PARAMETER_METRICS_OVERRIDE, defaultMetrics));
 		if (projectAsJson == null) {
 			return null;
 		}
@@ -271,21 +280,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 				// Parse and build the project's branches from the JSON
 				final int maxBranches = NumberUtils.toInt(getParameter(parameters, PARAMETER_MAX_BRANCHES, String.valueOf(DEFAULT_MAX_BRANCHES)));
 				if (maxBranches > 1) {
-					final var branchesAsJson = getResource(parameters, "api/project_branches/list?project=" + encodedId);
-					branches = objectMapper.readValue(unwrap(Objects.requireNonNullElse(branchesAsJson, "{}")),
-									new TypeReference<List<SonarBranch>>() {
-										// Nothing to override
-									}).stream()
-							.sorted((b1, b2) -> {
-								// Sort the branches by their activities
-								if (b1.isMain()) {
-									return -1;
-								}
-								if (b2.isMain()) {
-									return 1;
-								}
-								return StringUtils.compare(b2.getAnalysisDate(), b1.getAnalysisDate());
-							}).limit(maxBranches).collect(Collectors.toList());
+					branches = getSonarBranches(parameters, encodedId, maxBranches, defaultMetrics, queryUrl);
 				}
 			}
 		} else {
@@ -293,10 +288,55 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		}
 
 		// Map nicely the measures
-		project.setMeasuresAsMap(project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, v -> (int) v.getValue())));
+		project.setMeasuresAsMap(sanitizeMeasures(project));
 		project.setBranches(branches);
 		project.setRawMeasures(null);
 		return project;
+	}
+
+	/**
+	 * Retrieve branch details of a project. Only for 6.6 SonarQube versions.
+	 */
+	private List<SonarBranch> getSonarBranches(final Map<String, String> parameters, final String encodedId, final int maxBranches,
+			final String defaultMetrics, final String queryUrl) throws JsonProcessingException {
+		final var branchesAsJson = getResource(parameters, "api/project_branches/list?project=" + encodedId);
+		final var branches = objectMapper.readValue(unwrap(Objects.requireNonNullElse(branchesAsJson, "{}")),
+						new TypeReference<List<SonarBranch>>() {
+							// Nothing to override
+						}).stream()
+				.sorted((b1, b2) -> {
+					// Sort the branches by their activities
+					if (b1.isMain()) {
+						return -1;
+					}
+					if (b2.isMain()) {
+						return 1;
+					}
+					return StringUtils.compare(b2.getAnalysisDate(), b1.getAnalysisDate());
+				}).limit(maxBranches).collect(Collectors.toList());
+		final var branchMetrics = getParameter(parameters, PARAMETER_METRICS_BRANCHES, defaultMetrics);
+		if (!branchMetrics.isBlank()) {
+			// Get more metrics from each branch
+			branches.parallelStream().forEach(b -> {
+				final var branchesMetricsAsJson = getResource(parameters, queryUrl + branchMetrics
+						+ "&branch=" + URLEncoder.encode(b.getName(), StandardCharsets.UTF_8));
+				if (branchesMetricsAsJson != null) {
+					try {
+						final var branchesMetrics = objectMapper.readValue(unwrap(branchesMetricsAsJson), SonarProject.class);
+
+						// Complete with the branch measures
+						b.setMeasuresAsMap(sanitizeMeasures(branchesMetrics));
+					} catch (JacksonException je) {
+						log.warn("Unable to parse branch metrics {}", b.getName(), je);
+					}
+				}
+			});
+		}
+		return branches;
+	}
+
+	private Map<String, Integer> sanitizeMeasures(SonarProject project) {
+		return project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, v -> (int) v.getValue()));
 	}
 
 	private String unwrap(final String original) {

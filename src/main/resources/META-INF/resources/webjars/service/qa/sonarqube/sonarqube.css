@@ -4,6 +4,36 @@
 
 .service-qa-sonarqube .features>.details {
 	cursor: default;
+	font-size: 10px
+}
+
+.service-qa-sonarqube .features>.details .metric-coverage {
+    min-width: 26px;
+    display: inline-block;
+    min-height: 13.5px;
+    padding-top: 3.5px;
+}
+
+.service-qa-sonarqube .features>.details .branches .link {
+    margin-left: -51px;
+    float: left;
+    max-width: 54px;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+    overflow-x: hidden;
+    padding-top: 4px;
+}
+.service-qa-sonarqube .features>.details .branches .branch {
+    margin-top: 2px;
+}
+
+.service-qa-sonarqube .features>.details .branches .link:hover {
+    overflow-x: visible;
+    position: relative;
+}
+
+.service-qa-sonarqube .features>.details .branches .metrics {
+    margin-left: -48px;
 }
 
 .service-qa-sonarqube .features>.details .label {
@@ -11,7 +41,7 @@
 	padding-right: 5px;
 }
 
-.service-qa-sonarqube .features>.details > .metric.metric-ncloc {
+.service-qa-sonarqube .features>.details .metric.metric-ncloc {
     display: inline-block;
     width: 20px;
     height: 20px;
