@@ -16,10 +16,12 @@ define(function () {
 		 * Render SonarQube data.
 		 */
 		renderFeatures: function (subscription) {
-			let result = current.$super('renderServiceLink')('home', subscription.parameters['service:qa:sonarqube:url'] + '/dashboard/index/' + encodeURIComponent(subscription.parameters['service:qa:sonarqube:project']), 'service:qa:sonarqube:project', undefined, ' target=\'_blank\'');
-			// Help
-			result += current.$super('renderServiceHelpLink')(subscription.parameters, 'service:qa:help');
-			return result;
+			return `
+			    ${current.$super('renderServiceLink')('home',
+			    `${subscription.parameters['service:qa:sonarqube:url'].replace(/\/$/, '')}/dashboard/index/${encodeURIComponent(subscription.parameters['service:qa:sonarqube:project'])}`,
+			    'service:qa:sonarqube:project', undefined, ' target=\'_blank\'')}
+                ${current.$super('renderServiceHelpLink')(subscription.parameters, 'service:qa:help')}
+            `;
 		},
 
 		/**
@@ -33,7 +35,7 @@ define(function () {
 			], 1);
 		},
 
-            renderMetrics: function(subscription, project) {
+        renderMetrics: function(subscription, project) {
 		    const metricsHtml = Object.keys(project?.measuresAsMap||{}).sort((m1, m2) => {
                 if( m1.endsWith('_rating')) {
                     m1 = "_" + m1;
@@ -106,7 +108,7 @@ define(function () {
 		    const result = current.renderMetrics(subscription, subscription.data.project);
 		    const branches = (subscription.data.project?.branches||[]).filter(b => !b.isMain).map(b=> {
                  var parameter;
-                 var tooltip=`${b.type}<br>${current.$messages.name}: ${b.name}`
+                 let tooltip=`${b.type}<br>${current.$messages.name}: ${b.name}`
                  if (b.pullRequestKey) {
                      parameter=`pullRequest=${b.pullRequestKey}`;
                      tooltip+=`<br>${current.$messages['service:qa:sonarqube:pull-request']} <i class='fas fa-hashtag'></i> ${b.pullRequestKey}`
@@ -119,7 +121,7 @@ define(function () {
                  } else {
                      tooltip+=`<br><i class='far fa-calendar-times text-danger'></i> ${b.analysisDate}`;
                  }
-                 const url = current.$super('renderServiceLink')(b.pullRequestKey?'hashtag':'code-branch', `${subscription.parameters['service:qa:sonarqube:url']}/dashboard?id=${encodeURIComponent(subscription.parameters['service:qa:sonarqube:project'])}&${parameter}`, tooltip, b.pullRequestKey || b.name, ' target=\'_blank\'', 'link')
+                 const url = current.$super('renderServiceLink')(b.pullRequestKey?'hashtag':'code-branch', `${subscription.parameters['service:qa:sonarqube:url'].replace(/\/$/,'')}/dashboard?id=${encodeURIComponent(subscription.parameters['service:qa:sonarqube:project'])}&${parameter}`, tooltip, b.pullRequestKey || b.name, ' target=\'_blank\'', 'link')
                  let branchMetrics = current.renderMetrics(subscription, b);
                  return `<div class="branch">${url}${branchMetrics}</div>`;
             }).join(' ');
@@ -127,7 +129,4 @@ define(function () {
 		}
 	};
 	return current;
-
-	//}<a data-toggle="tooltip" title="${description||shortMetricName}" target="_blank" href=""><i class="fas ${b.type==='BRANCH'?'fa-code-branch':'fa-hashtag'}"></i>
-      //              ${b.name || b.pullRequestKey}</a>
 });
