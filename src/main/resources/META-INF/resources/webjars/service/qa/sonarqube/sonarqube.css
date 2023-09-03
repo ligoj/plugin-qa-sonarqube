@@ -14,8 +14,13 @@
     padding-top: 3.5px;
 }
 
+.service-qa-sonarqube .features>.details .metrics-wrapper {
+    width: 115px;
+    text-align: right;
+}
+
 .service-qa-sonarqube .features>.details .branches .link {
-    margin-left: -51px;
+    margin-left: -48px;
     float: left;
     max-width: 54px;
     text-wrap: nowrap;
