@@ -77,12 +77,10 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	public static final String PARAMETER_METRICS_BRANCHES = KEY + ":metrics-branches";
 
-
 	/**
 	 * Default maximum returned branches.
 	 */
 	public static final int DEFAULT_MAX_BRANCHES = 10;
-
 
 	/**
 	 * Sonar username able to connect to instance.
@@ -108,6 +106,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	private ObjectMapperTrim objectMapper;
 
 	@Autowired
+	@Deprecated
 	private ConfigurationResource configuration;
 
 	/**
@@ -219,8 +218,9 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		return getResource(parameters, "api/server/version");
 	}
 
+	@Deprecated
 	private String getParameter(final Map<String, String> parameters, final String parameter, final String defaultValue) {
-		return Objects.requireNonNullElseGet(parameters.get(parameter), () -> configuration.get(PARAMETER_METRICS_OVERRIDE, defaultValue));
+		return Objects.requireNonNullElseGet(parameters.get(parameter), () -> configuration.get(parameter, defaultValue));
 	}
 
 	/**
