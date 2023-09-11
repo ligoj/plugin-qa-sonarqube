@@ -121,7 +121,7 @@ define(function () {
                  } else {
                      tooltip+=`<br><i class='far fa-calendar-times text-danger'></i> ${b.analysisDate}`;
                  }
-                 const url = current.$super('renderServiceLink')(b.pullRequestKey?'hashtag':'code-branch', `${subscription.parameters['service:qa:sonarqube:url'].replace(/\/$/,'')}/dashboard?id=${encodeURIComponent(subscription.parameters['service:qa:sonarqube:project'])}&${parameter}`, tooltip, b.pullRequestKey || b.name, ' target=\'_blank\'', 'link')
+                 const url = current.$super('renderServiceLink')((b.pullRequestKey?'hashtag':'code-branch') + ' fa-fw', `${subscription.parameters['service:qa:sonarqube:url'].replace(/\/$/,'')}/dashboard?id=${encodeURIComponent(subscription.parameters['service:qa:sonarqube:project'])}&${parameter}`, tooltip, b.pullRequestKey || b.name, ' target=\'_blank\'', 'link')
                  let branchMetrics = current.renderMetrics(subscription, b);
                  return `<div class="branch">${url}${branchMetrics}</div>`;
             }).join(' ');
