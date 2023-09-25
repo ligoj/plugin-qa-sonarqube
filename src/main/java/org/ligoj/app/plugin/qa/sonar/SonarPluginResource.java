@@ -218,11 +218,6 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		return getResource(parameters, "api/server/version");
 	}
 
-	@Deprecated
-	private String getParameter(final Map<String, String> parameters, final String parameter, final String defaultValue) {
-		return Objects.requireNonNullElseGet(parameters.get(parameter), () -> configuration.get(parameter, defaultValue));
-	}
-
 	/**
 	 * Return all SonarQube project without limit.
 	 *
