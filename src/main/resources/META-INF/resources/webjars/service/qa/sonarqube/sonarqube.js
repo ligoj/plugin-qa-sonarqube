@@ -1,5 +1,5 @@
 define(function () {
-	var current = {
+	const current = {
 
 		configureSubscriptionParameters: function (configuration) {
 			current.$super('registerXServiceSelect2')(configuration, 'service:qa:sonarqube:project', 'service/qa/sonarqube/');
@@ -76,7 +76,7 @@ define(function () {
                     }
                     description += `: ${value}`;
                 } else {
-                    if (value > 1000000) {
+                    if (value > 1000000000) {
                         displayValue = Math.round(value/1000000000);
                         unit = 'G';
                     } else if (value > 1000000) {
@@ -125,7 +125,7 @@ define(function () {
                  let branchMetrics = current.renderMetrics(subscription, b);
                  return `<div class="branch">${url}${branchMetrics}</div>`;
             }).join(' ');
-            return result + `${branches ? `<div class="branches">${branches}</div>`: ''}`;
+            return result + (branches ? `<div class="branches">${branches}</div>`: '');
 		}
 	};
 	return current;

@@ -249,7 +249,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		List<SonarBranch> branches = Collections.emptyList();
 
 		// Get the JSON project
-		final String queryUrl, defaultMetrics;
+		final String queryUrl;
+		final String defaultMetrics;
 		if (is63API(version)) {
 			queryUrl = "api/measures/component?component=" + encodedId + "&metricKeys=";
 			defaultMetrics = DEFAULT_METRICS_63;
