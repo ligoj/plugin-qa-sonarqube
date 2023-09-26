@@ -21,7 +21,6 @@ import org.ligoj.app.resource.plugin.VersionUtils;
 import org.ligoj.bootstrap.core.curl.CurlProcessor;
 import org.ligoj.bootstrap.core.json.ObjectMapperTrim;
 import org.ligoj.bootstrap.core.validation.ValidationJsonException;
-import org.ligoj.bootstrap.resource.system.configuration.ConfigurationResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -104,10 +103,6 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	@Autowired
 	private ObjectMapperTrim objectMapper;
-
-	@Autowired
-	@Deprecated
-	private ConfigurationResource configuration;
 
 	/**
 	 * Version utilities for compare.
