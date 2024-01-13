@@ -231,7 +231,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 		// Check branches size and ordering
 		Assertions.assertEquals(3, project.getBranches().size());
-		final var mainBranch = project.getBranches().get(0);
+		final var mainBranch = project.getBranches().getFirst();
 		Assertions.assertTrue(mainBranch.isMain());
 		Assertions.assertEquals("main", mainBranch.getName());
 		Assertions.assertEquals("2023-08-08T10:11:18+0000", mainBranch.getAnalysisDate());

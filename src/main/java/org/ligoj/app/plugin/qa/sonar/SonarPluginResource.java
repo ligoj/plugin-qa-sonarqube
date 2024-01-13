@@ -87,7 +87,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	public static final String PARAMETER_USER = KEY + ":user";
 
 	/**
-	 * Sonar user password able to connect to instance.
+	 * Sonar user password/token able to connect to instance.
 	 */
 	public static final String PARAMETER_PASSWORD = KEY + ":password";
 
