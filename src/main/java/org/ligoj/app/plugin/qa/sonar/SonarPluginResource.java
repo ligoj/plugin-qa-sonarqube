@@ -153,19 +153,19 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		CurlProcessor.validateAndClose(url, PARAMETER_URL, "sonar-connection");
 
 		// Check the user can logins to SonarQube with the preempted authentication processor
-		if (!StringUtils.trimToEmpty(getResource(parameters, "api/authentication/validate?format=json"))
+		final var version = getVersion(parameters);
+		if (!StringUtils.trimToEmpty(getResource(version, parameters, "api/authentication/validate?format=json"))
 				.contains("true")) {
 			throw new ValidationJsonException(PARAMETER_USER, "sonar-login");
 		}
 
 		// Check the user has enough rights to access to the provisioning page
-		final var version = getVersion(parameters);
 		if (StringUtils.isNotBlank(version)) {
 			final String checkRights;
 			if (is63API(version)) {
-				checkRights = getResource(parameters, "api/projects/search");
+				checkRights = getResource(version, parameters, "api/projects/search");
 			} else {
-				checkRights = getResource(parameters, "provisioning");
+				checkRights = getResource(version, parameters, "provisioning");
 			}
 			if (checkRights == null) {
 				throw new ValidationJsonException(PARAMETER_USER, "sonar-rights");
@@ -186,12 +186,13 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * Return a SonarQube's resource. Return <code>null</code> when the resource is
 	 * not found.
 	 *
+	 * @param version    The remote SonarQube version
 	 * @param parameters The subscription parameters.
 	 * @param resource   The SonarQube resource URL to query.
 	 * @return The JSON data.
 	 */
-	protected String getResource(final Map<String, String> parameters, final String resource) {
-		return getResource(new SonarCurlProcessor(parameters), parameters.get(PARAMETER_URL), resource);
+	protected String getResource(final String version, final Map<String, String> parameters, final String resource) {
+		return getResource(new SonarCurlProcessor(version, parameters), parameters.get(PARAMETER_URL), resource);
 	}
 
 	/**
@@ -210,7 +211,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 	@Override
 	public String getVersion(final Map<String, String> parameters) {
-		return getResource(parameters, "api/server/version");
+		return getResource(null, parameters, "api/server/version");
 	}
 
 	/**
@@ -224,12 +225,12 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	protected List<SonarProject> getProjects(final Map<String, String> parameters, final String formatCriteria) throws IOException {
 		final var version = getVersion(parameters);
 		if (is63API(version)) {
-			return objectMapper.readValue(getResource(parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
+			return objectMapper.readValue(getResource(version, parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
 					new TypeReference<SonarProjectList>() {
 						// Nothing to override
 					}).getComponents();
 		}
-		return objectMapper.readValue(getResource(parameters, "api/resources?format=json"),
+		return objectMapper.readValue(getResource(version, parameters, "api/resources?format=json"),
 				new TypeReference<>() {
 					// Nothing to override
 				});
@@ -258,7 +259,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 			queryUrl = "api/resources?format=json&resource=" + encodedId + "&metrics=";
 			defaultMetrics = DEFAULT_METRICS;
 		}
-		var projectAsJson = getResource(parameters, queryUrl + getParameter(parameters, PARAMETER_METRICS_OVERRIDE, defaultMetrics));
+		var projectAsJson = getResource(version, parameters, queryUrl + getParameter(parameters, PARAMETER_METRICS_OVERRIDE, defaultMetrics));
 		if (projectAsJson == null) {
 			return null;
 		}
@@ -271,7 +272,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 				// Parse and build the project's branches from the JSON
 				final int maxBranches = NumberUtils.toInt(getParameter(parameters, PARAMETER_MAX_BRANCHES, String.valueOf(DEFAULT_MAX_BRANCHES)));
 				if (maxBranches > 1) {
-					branches = getSonarBranches(parameters, encodedId, maxBranches, defaultMetrics, queryUrl);
+					branches = getSonarBranches(version, parameters, encodedId, maxBranches, defaultMetrics, queryUrl);
 				}
 			}
 		} else {
@@ -288,9 +289,9 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Retrieve branch details of a project. Only for 6.6 SonarQube versions.
 	 */
-	private List<SonarBranch> getSonarBranches(final Map<String, String> parameters, final String encodedId, final int maxBranches,
+	private List<SonarBranch> getSonarBranches(final String version, final Map<String, String> parameters, final String encodedId, final int maxBranches,
 			final String defaultMetrics, final String queryUrl) throws JsonProcessingException {
-		final var branchesAsJson = getResource(parameters, "api/project_branches/list?project=" + encodedId);
+		final var branchesAsJson = getResource(version, parameters, "api/project_branches/list?project=" + encodedId);
 		final var branches = objectMapper.readValue(unwrap(Objects.requireNonNullElse(branchesAsJson, "{}")),
 						new TypeReference<List<SonarBranch>>() {
 							// Nothing to override
@@ -309,7 +310,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		if (!branchMetrics.isBlank()) {
 			// Get more metrics from each branch
 			branches.parallelStream().forEach(b -> {
-				final var branchesMetricsAsJson = getResource(parameters, queryUrl + branchMetrics
+				final var branchesMetricsAsJson = getResource(version, parameters, queryUrl + branchMetrics
 						+ "&branch=" + URLEncoder.encode(b.getName(), StandardCharsets.UTF_8));
 				if (branchesMetricsAsJson != null) {
 					try {
@@ -330,6 +331,9 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		return project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, v -> (int) v.getValue()));
 	}
 
+	/**
+	 * Remove the wrapping '{..}' and return the first property
+	 */
 	private String unwrap(final String original) {
 		return original == null ? null : StringUtils.removeEnd(original
 				.replace("\n", "").replace("\r", "")

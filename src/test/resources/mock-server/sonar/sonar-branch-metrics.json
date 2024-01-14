@@ -1,0 +1,15 @@
+{
+	"component": {
+		"key": "fr.company1:project1",
+		"name": "Company1 - Project1",
+		"description": "Parent defining top level global configuration of projects.",
+		"qualifier": "TRK",
+		"measures": [
+			{
+				"metric": "security_review_rating",
+				"value": "5.0",
+				"bestValue": false
+			}
+		]
+	}
+}

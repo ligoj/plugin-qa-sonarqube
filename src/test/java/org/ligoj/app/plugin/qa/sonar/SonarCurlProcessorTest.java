@@ -19,7 +19,7 @@ public class SonarCurlProcessorTest extends AbstractServerTest {
 	@Test
 	void sonarCurlProcessorTokenGlobal() {
 		// Coverage only
-		final var processor = new SonarCurlProcessor(Map.of( SonarPluginResource.PARAMETER_USER,"sqa_1234567890123456789012345678901234567890",
+		final var processor = new SonarCurlProcessor("9.9.3", Map.of( SonarPluginResource.PARAMETER_USER,"sqa_1234567890123456789012345678901234567890",
 				SonarPluginResource.PARAMETER_PASSWORD,""));
 		final var request = Mockito.mock(CurlRequest.class);
 		final var headers = new HashMap<String, String>();
@@ -30,7 +30,7 @@ public class SonarCurlProcessorTest extends AbstractServerTest {
 	@Test
 	void sonarCurlProcessorTokenUser() {
 		// Coverage only
-		final var processor = new SonarCurlProcessor(Map.of( SonarPluginResource.PARAMETER_USER,"squ_1234567890123456789012345678901234567890",
+		final var processor = new SonarCurlProcessor("9.9.3", Map.of( SonarPluginResource.PARAMETER_USER,"squ_1234567890123456789012345678901234567890",
 				SonarPluginResource.PARAMETER_PASSWORD,""));
 		final var request = Mockito.mock(CurlRequest.class);
 		final var headers = new HashMap<String, String>();
@@ -41,12 +41,22 @@ public class SonarCurlProcessorTest extends AbstractServerTest {
 	@Test
 	void sonarCurlProcessorNoCredentials() {
 		// Coverage only
-		final var processor = new SonarCurlProcessor(new HashMap<>());
+		final var processor = new SonarCurlProcessor("9.9.3", new HashMap<>());
 		final var request = Mockito.mock(CurlRequest.class);
 		final var headers = new HashMap<String, String>();
 		Mockito.doReturn(headers).when(request).getHeaders();
 		processor.process(request);
 		Assertions.assertNull(request.getHeaders().get("Authorization"));
 	}
-
+	@Test
+	void sonarCurlProcessorTokenUser92() {
+		// Coverage only
+		final var processor = new SonarCurlProcessor("9.2.1", Map.of( SonarPluginResource.PARAMETER_USER,"1234567890123456789012345678901234567890",
+				SonarPluginResource.PARAMETER_PASSWORD,""));
+		final var request = Mockito.mock(CurlRequest.class);
+		final var headers = new HashMap<String, String>();
+		Mockito.doReturn(headers).when(request).getHeaders();
+		processor.process(request);
+		Assertions.assertEquals("Basic MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDo",request.getHeaders().get("Authorization"));
+	}
 }

@@ -101,7 +101,7 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void getSonarResourceInvalidUrl() {
-		resource.getResource(new HashMap<>(), null);
+		resource.getResource("9.9.3", new HashMap<>(), null);
 	}
 
 	@Test
@@ -225,6 +225,11 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		httpServer.stubFor(get(urlEqualTo("/api/project_branches/list?project=fr.company1%3Aproject1"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-branches.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.stubFor(get(urlEqualTo("/api/measures/component?component=fr.company1%3Aproject1&metricKeys=ncloc,coverage,sqale_rating,security_rating,reliability_rating,security_review_rating&branch=features%2F1"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
+						new ClassPathResource("mock-server/sonar/sonar-branch-metrics.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.stubFor(get(urlEqualTo("/api/measures/component?component=fr.company1%3Aproject1&metricKeys=ncloc,coverage,sqale_rating,security_rating,reliability_rating,security_review_rating&branch=main"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html/>")));
 		httpServer.start();
 		final var project = validateProject("fr.company1:project1", "3", "ncloc,coverage");
 		Assertions.assertEquals("fr.company1:project1", project.getKey());
@@ -237,12 +242,14 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		Assertions.assertEquals("2023-08-08T10:11:18+0000", mainBranch.getAnalysisDate());
 		Assertions.assertEquals("BRANCH", mainBranch.getType());
 		Assertions.assertEquals("OK", mainBranch.getStatus().get("qualityGateStatus"));
+		Assertions.assertNull(mainBranch.getMeasuresAsMap());
 
 		 var nextBranch = project.getBranches().get(1);
 		Assertions.assertFalse(nextBranch.isMain());
 		Assertions.assertEquals("features/1", nextBranch.getName());
 		Assertions.assertEquals("2023-08-08T17:12:31+0000", nextBranch.getAnalysisDate());
 		Assertions.assertEquals("BRANCH", nextBranch.getType());
+		Assertions.assertEquals(5, nextBranch.getMeasuresAsMap().get("security_review_rating"));
 
 		nextBranch = project.getBranches().get(2);
 		Assertions.assertFalse(nextBranch.isMain());
@@ -251,6 +258,8 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 		Assertions.assertEquals("PULL_REQUEST", nextBranch.getType());
 		Assertions.assertEquals("main", nextBranch.getTargetBranchName());
 		Assertions.assertEquals("34", nextBranch.getPullRequestKey());
+		Assertions.assertNull(nextBranch.getMeasuresAsMap());
+
 	}
 
 	private SonarProject validateProject(final String id, final String maxBranches, final String metrics) throws IOException {
