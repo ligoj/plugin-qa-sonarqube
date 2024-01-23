@@ -3,7 +3,7 @@
  */
 package org.ligoj.app.plugin.qa.sonar;
 
-import org.ligoj.bootstrap.core.curl.DefaultHttpResponseCallback;
+import org.ligoj.bootstrap.core.curl.CurlProcessor;
 import org.ligoj.bootstrap.core.curl.HttpResponseCallback;
 import org.ligoj.bootstrap.core.curl.SessionAuthCurlProcessor;
 
@@ -28,7 +28,7 @@ public class SonarCurlProcessor extends SessionAuthCurlProcessor {
 	 * @param parameters the SonarQube parameters.
 	 */
 	public SonarCurlProcessor(final String version, final Map<String, String> parameters) {
-		this(version, parameters, new DefaultHttpResponseCallback());
+		this(version, parameters, CurlProcessor.DEFAULT_CALLBACK);
 	}
 
 	/**

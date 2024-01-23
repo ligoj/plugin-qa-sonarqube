@@ -150,7 +150,11 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	protected String validateAdminAccess(final Map<String, String> parameters) {
 		final var url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
-		CurlProcessor.validateAndClose(url, PARAMETER_URL, "sonar-connection");
+
+		try (final var curlProcessor = new CurlProcessor(CurlProcessor.DEFAULT_CALLBACK, CurlProcessor.DEFAULT_CONNECTION_TIMEOUT,
+				CurlProcessor.DEFAULT_RESPONSE_TIMEOUT, true, null, null)) {
+			curlProcessor.validate(url, PARAMETER_URL, "sonar-connection");
+		}
 
 		// Check the user can logins to SonarQube with the preempted authentication processor
 		final var version = getVersion(parameters);
@@ -246,7 +250,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	protected SonarProject getProject(final Map<String, String> parameters, final String id) throws IOException {
 		final var version = getVersion(parameters);
-		final String encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8);
+		final var encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8);
 		List<SonarBranch> branches = Collections.emptyList();
 
 		// Get the JSON project
