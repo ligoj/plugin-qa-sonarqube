@@ -5,7 +5,6 @@ package org.ligoj.app.plugin.qa.sonar;
 
 import org.ligoj.bootstrap.core.curl.CurlProcessor;
 import org.ligoj.bootstrap.core.curl.HttpResponseCallback;
-import org.ligoj.bootstrap.core.curl.SessionAuthCurlProcessor;
 
 import java.util.Map;
 import java.util.regex.Pattern;
