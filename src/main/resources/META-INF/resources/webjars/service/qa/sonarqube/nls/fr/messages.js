@@ -7,7 +7,7 @@ define({
 	"service:qa:sonarqube:key" : "Clé",
     "service:qa:sonarqube:metric:ncloc" : "Nombre de lignes de code non commentées",
     "service:qa:sonarqube:metric:coverage" : "Couverture",
-    "service:qa:sonarqube:metric:sqale_rating" : "Indicateur de maintenance. Ratio A-à-Ebasé sur le ratio de la dette technique",
+    "service:qa:sonarqube:metric:sqale_rating" : "Indicateur de maintenance. Ratio de A à E, basé sur le ratio de la dette technique",
     "service:qa:sonarqube:metric:security_rating" : "Indicateur de sécurité",
     "service:qa:sonarqube:metric:reliability_rating" : "Indicateur de robustesse",
     "service:qa:sonarqube:metric:security_review_rating" : "Indicateur de revue de sécurité"
