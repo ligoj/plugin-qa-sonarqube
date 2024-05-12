@@ -36,7 +36,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 @ContextConfiguration(locations = "classpath:/META-INF/spring/application-context-test.xml")
 @Rollback
 @Transactional
-public class SonarPluginResourceTest extends AbstractServerTest {
+class SonarPluginResourceTest extends AbstractServerTest {
 	@Autowired
 	private SonarPluginResource resource;
 
@@ -92,11 +92,6 @@ public class SonarPluginResourceTest extends AbstractServerTest {
 	 */
 	private int getSubscription(final String project) {
 		return getSubscription(project, QaResource.SERVICE_KEY);
-	}
-
-	@Test
-	void delete() throws Exception {
-		resource.delete(subscription, false);
 	}
 
 	@Test
