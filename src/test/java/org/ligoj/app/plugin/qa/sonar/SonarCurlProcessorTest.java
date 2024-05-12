@@ -15,28 +15,27 @@ import java.util.Map;
 /**
  * Test class of {@link SonarCurlProcessor}
  */
-public class SonarCurlProcessorTest extends AbstractServerTest {
-	@Test
-	void sonarCurlProcessorTokenGlobal() {
+class SonarCurlProcessorTest extends AbstractServerTest {
+
+
+	private void sonarCurlProcessorToken(final String version, final String token, final String auth) {
 		// Coverage only
-		final var processor = new SonarCurlProcessor("9.9.3", Map.of( SonarPluginResource.PARAMETER_USER,"sqa_1234567890123456789012345678901234567890",
+		final var processor = new SonarCurlProcessor(version, Map.of( SonarPluginResource.PARAMETER_USER,token,
 				SonarPluginResource.PARAMETER_PASSWORD,""));
 		final var request = Mockito.mock(CurlRequest.class);
 		final var headers = new HashMap<String, String>();
 		Mockito.doReturn(headers).when(request).getHeaders();
 		processor.process(request);
-		Assertions.assertEquals("Basic c3FhXzEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTA6",request.getHeaders().get("Authorization"));
+		Assertions.assertEquals("Basic "+auth,request.getHeaders().get("Authorization"));
+	}
+
+	@Test
+	void sonarCurlProcessorTokenGlobal() {
+		sonarCurlProcessorToken("9.9.3", "sqa_1234567890123456789012345678901234567890", "c3FhXzEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTA6");
 	}
 	@Test
 	void sonarCurlProcessorTokenUser() {
-		// Coverage only
-		final var processor = new SonarCurlProcessor("9.9.3", Map.of( SonarPluginResource.PARAMETER_USER,"squ_1234567890123456789012345678901234567890",
-				SonarPluginResource.PARAMETER_PASSWORD,""));
-		final var request = Mockito.mock(CurlRequest.class);
-		final var headers = new HashMap<String, String>();
-		Mockito.doReturn(headers).when(request).getHeaders();
-		processor.process(request);
-		Assertions.assertEquals("Basic c3F1XzEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTA6",request.getHeaders().get("Authorization"));
+		sonarCurlProcessorToken("9.9.3", "squ_1234567890123456789012345678901234567890", "c3F1XzEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTA6");
 	}
 	@Test
 	void sonarCurlProcessorNoCredentials() {
@@ -50,13 +49,6 @@ public class SonarCurlProcessorTest extends AbstractServerTest {
 	}
 	@Test
 	void sonarCurlProcessorTokenUser92() {
-		// Coverage only
-		final var processor = new SonarCurlProcessor("9.2.1", Map.of( SonarPluginResource.PARAMETER_USER,"1234567890123456789012345678901234567890",
-				SonarPluginResource.PARAMETER_PASSWORD,""));
-		final var request = Mockito.mock(CurlRequest.class);
-		final var headers = new HashMap<String, String>();
-		Mockito.doReturn(headers).when(request).getHeaders();
-		processor.process(request);
-		Assertions.assertEquals("Basic MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDo",request.getHeaders().get("Authorization"));
+		sonarCurlProcessorToken("9.2.1", "1234567890123456789012345678901234567890", "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDo=");
 	}
 }

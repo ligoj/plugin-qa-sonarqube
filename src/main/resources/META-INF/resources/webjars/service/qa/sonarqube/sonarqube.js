@@ -107,7 +107,7 @@ define(function () {
 		renderDetailsFeatures: function (subscription) {
 		    const result = current.renderMetrics(subscription, subscription.data.project);
 		    const branches = (subscription.data.project?.branches||[]).filter(b => !b.isMain).map(b=> {
-                 var parameter;
+                 let parameter = null;
                  let tooltip=`${b.type}<br>${current.$messages.name}: ${b.name}`
                  if (b.pullRequestKey) {
                      parameter=`pullRequest=${b.pullRequestKey}`;

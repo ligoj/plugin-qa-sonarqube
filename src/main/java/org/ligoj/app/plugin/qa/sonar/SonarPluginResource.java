@@ -309,7 +309,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 						return 1;
 					}
 					return StringUtils.compare(b2.getAnalysisDate(), b1.getAnalysisDate());
-				}).limit(maxBranches).collect(Collectors.toList());
+				}).limit(maxBranches).toList();
 		final var branchMetrics = getParameter(parameters, PARAMETER_METRICS_BRANCHES, defaultMetrics);
 		if (!branchMetrics.isBlank()) {
 			// Get more metrics from each branch
