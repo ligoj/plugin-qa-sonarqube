@@ -11,6 +11,7 @@ import jakarta.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.ligoj.app.api.SubscriptionStatusWithData;
 import org.ligoj.app.plugin.qa.QaResource;
@@ -133,7 +134,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	protected SonarProject validateProject(final Map<String, String> parameters) throws IOException {
 		// Get project's configuration
-		final var id = ObjectUtils.defaultIfNull(parameters.get(PARAMETER_PROJECT), "0");
+		final var id = ObjectUtils.getIfNull(parameters.get(PARAMETER_PROJECT), "0");
 		final var result = getProject(parameters, id);
 		if (result == null) {
 			// Invalid id
@@ -149,7 +150,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @return the detected SonarQube version.
 	 */
 	protected String validateAdminAccess(final Map<String, String> parameters) {
-		final var url = StringUtils.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
+		final var url = Strings.CS.appendIfMissing(parameters.get(PARAMETER_URL), "/") + "sessions/new";
 
 		try (final var curlProcessor = new CurlProcessor(CurlProcessor.DEFAULT_CALLBACK, CurlProcessor.DEFAULT_CONNECTION_TIMEOUT,
 				CurlProcessor.DEFAULT_RESPONSE_TIMEOUT, true, null, null)) {
@@ -210,7 +211,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 */
 	protected String getResource(final CurlProcessor processor, final String url, final String resource) {
 		// Get the resource using the preempted authentication
-		return processor.get(StringUtils.appendIfMissing(url, "/") + resource);
+		return processor.get(Strings.CS.appendIfMissing(url, "/") + resource);
 	}
 
 	@Override
@@ -280,7 +281,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 				}
 			}
 		} else {
-			project = objectMapper.readValue(StringUtils.removeEnd(StringUtils.removeStart(projectAsJson, "["), "]"), SonarProject.class);
+			project = objectMapper.readValue(Strings.CS.removeEnd(Strings.CS.removeStart(projectAsJson, "["), "]"), SonarProject.class);
 		}
 
 		// Map nicely the measures
@@ -308,7 +309,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 					if (b2.isMain()) {
 						return 1;
 					}
-					return StringUtils.compare(b2.getAnalysisDate(), b1.getAnalysisDate());
+					return Strings.CS.compare(b2.getAnalysisDate(), b1.getAnalysisDate());
 				}).limit(maxBranches).toList();
 		final var branchMetrics = getParameter(parameters, PARAMETER_METRICS_BRANCHES, defaultMetrics);
 		if (!branchMetrics.isBlank()) {
@@ -339,7 +340,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * Remove the wrapping '{..}' and return the first property
 	 */
 	private String unwrap(final String original) {
-		return original == null ? null : StringUtils.removeEnd(original
+		return original == null ? null : Strings.CS.removeEnd(original
 				.replace("\n", "").replace("\r", "")
 				.replaceFirst("\\{[ \t]*\"[a-zA-Z0-9_-]+\"[ \t]*:[ \t]*", ""), "}");
 	}
