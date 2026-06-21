@@ -13,6 +13,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.ligoj.app.api.SubscriptionStatusWithData;
 import org.ligoj.app.plugin.qa.QaResource;
 import org.ligoj.app.plugin.qa.QaServicePlugin;
@@ -180,11 +181,11 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	}
 
 	private boolean is63API(final String version) {
-		return version != null && version.compareTo("6.3.0") >= 0;
+		return version != null && new DefaultArtifactVersion(version).compareTo(new DefaultArtifactVersion("6.3.0")) >= 0;
 	}
 
 	private boolean is66API(final String version) {
-		return version != null && version.compareTo("6.6.0") >= 0;
+		return version != null && new DefaultArtifactVersion(version).compareTo(new DefaultArtifactVersion("6.6.0")) >= 0;
 	}
 
 	/**
