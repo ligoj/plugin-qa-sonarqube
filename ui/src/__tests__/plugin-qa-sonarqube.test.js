@@ -43,14 +43,15 @@ describe('plugin-qa-sonarqube contract', () => {
     def.install()
     expect(def.feature('renderDetailsFeatures', { parameters: {} })).toBeNull()
   })
-  // Every badge is a <v-tooltip> (project convention — no native `title`).
-  // Decode it: call the activator slot for the styled span, the default slot
-  // for the tooltip rows.
-  const decode = (tipVNode) => {
-    const span = tipVNode.children.activator({ props: {} })
-    const lines = (tipVNode.children.default() || []).map((d) => d.children)
-    return { class: String(span.props.class), text: span.children, style: String(span.props.style), lines }
-  }
+  // Tooltips are IMPLICIT: each badge is a plain styled <span> carrying a
+  // `title:` (multi-row = "\n"-joined). The host promotes that `title:` to a
+  // <v-tooltip>; here we assert the raw badge the service returns.
+  const decode = (badge) => ({
+    class: String(badge.props.class),
+    text: badge.children,
+    style: String(badge.props.style || ''),
+    lines: String(badge.props.title).split('\n'),
+  })
   it('renderDetailsFeatures styles each metric by kind', () => {
     def.install()
     const out = def.feature('renderDetailsFeatures', {
@@ -68,15 +69,16 @@ describe('plugin-qa-sonarqube contract', () => {
     // neutral numeric → value + unit on the default colour.
     expect(byClass('sq-coverage').text).toBe('85%')
   })
-  it('every metric tooltip is a v-tooltip showing name, value and meaning', () => {
+  it('every metric badge carries a title showing name, value and meaning', () => {
     def.install()
     const out = def.feature('renderDetailsFeatures', {
       parameters: { 'service:qa:sonarqube:url': 'https://s.org', 'service:qa:sonarqube:project': 'p' },
       data: { project: { measuresAsMap: { sqale_rating: 1, ncloc: 250000, coverage: 85 } } },
     })
     const badges = out[0].children
-    // Tooltips render via <v-tooltip>, not the native `title` attribute.
-    expect(badges.every((tv) => tv.type?.name === 'VTooltip')).toBe(true)
+    // Badges are plain spans carrying a `title:`; the host promotes it to a
+    // v-tooltip (no native `title` left in the DOM after promotion).
+    expect(badges.every((b) => b.type === 'span')).toBe(true)
     const byClass = (frag) => badges.map(decode).find((b) => b.class.includes(frag))
     // rating: name "Maintainability", value "A" (not the raw grade), meaning.
     expect(byClass('sq-sqale_rating').lines).toEqual(['Maintainability', 'Value: A', 'A-to-E rating based on the technical debt ratio'])
@@ -96,9 +98,9 @@ describe('plugin-qa-sonarqube contract', () => {
     })
     const branchesDiv = out.find((n) => String(n.props.class).includes('sq-branches'))
     expect(branchesDiv.children).toHaveLength(1) // only the non-main branch
-    const linkTip = branchesDiv.children[0].children[0] // <v-tooltip> wrapping the <a>
-    expect(linkTip.type?.name).toBe('VTooltip')
-    const link = linkTip.children.activator({ props: {} })
+    const link = branchesDiv.children[0].children[0] // the <a> (its title is promoted by the host)
+    expect(link.type).toBe('a')
     expect(link.props.href).toBe('https://s.org/dashboard?id=p&branch=feat%2Fx')
+    expect(String(link.props.title)).toContain('Name: feat/x')
   })
 })

@@ -11,10 +11,17 @@
  *     styled by KIND: A–E *_rating grades get a graded colour, ncloc renders as
  *     a blue size circle (XS…XL), everything else a neutral compact label.
  *
+ * TOOLTIPS ARE IMPLICIT. Every node (the dashboard button, the key chip, each
+ * metric badge, each branch link) just sets a plain `title:` — including the
+ * nested badges, whose multi-row "name / value / meaning" hint is a single
+ * "\n"-joined string. The host's `PluginFeatures.promoteTitleToTooltip`
+ * recurses the returned tree and upgrades every `title:` to a themed
+ * <v-tooltip>, so this plugin imports no VTooltip and wraps no activators.
+ *
  * Kept free of Vue SFC imports for unit testing — VNodes only.
  */
 import { h } from 'vue'
-import { VBtn, VChip, VIcon, VTooltip, useI18nStore } from '@ligoj/host'
+import { VIcon, useI18nStore, renderServiceLink, renderDetailsChip } from '@ligoj/host'
 
 const PARAM_URL = 'service:qa:sonarqube:url'
 const PARAM_PROJECT = 'service:qa:sonarqube:project'
@@ -25,32 +32,18 @@ function renderFeatures(subscription) {
   const project = params?.[PARAM_PROJECT]
   if (!url || !project) return []
   const { t } = useI18nStore()
-  return [
-    h(
-      VBtn,
-      {
-        icon: true,
-        size: 'small',
-        variant: 'text',
-        href: `${url.replace(/\/$/, '')}/dashboard/index/${encodeURIComponent(project)}`,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-        title: t('service:qa:sonarqube:project'),
-      },
-      () => h(VIcon, { size: 'small' }, () => 'mdi-home'),
-    ),
-  ]
+  return [renderServiceLink({
+    icon: 'mdi-home',
+    href: `${url.replace(/\/$/, '')}/dashboard/index/${encodeURIComponent(project)}`,
+    title: t('service:qa:sonarqube:project'),
+  })]
 }
 
 function renderDetailsKey(subscription) {
   const project = subscription?.parameters?.[PARAM_PROJECT]
   if (!project) return null
   const { t } = useI18nStore()
-  return h(
-    VChip,
-    { size: 'small', variant: 'tonal', class: 'mr-1', title: t('service:qa:sonarqube:project') },
-    () => [h(VIcon, { start: true, size: 'small' }, () => 'mdi-shield-check-outline'), ' ', String(project)],
-  )
+  return renderDetailsChip({ icon: 'mdi-shield-check-outline', text: project, title: t('service:qa:sonarqube:project') })
 }
 
 /* ---- metrics ------------------------------------------------------------ */
@@ -70,28 +63,15 @@ function msg(t, key) {
   return v === key ? '' : v
 }
 
-// PROJECT CONVENTION: tooltips ALWAYS render through Vuetify <v-tooltip>, never
-// the native `title` box. `PluginFeatures.promoteTitleToTooltip` only upgrades a
-// `title:` on a TOP-LEVEL delegation VNode and does not recurse, so these nested
-// badges/links wrap their own activator in v-tooltip. Each `lines` entry is its
-// own row, so the name / value / meaning tooltip reads cleanly.
-function tip(lines, activator) {
-  const rows = lines.filter(Boolean)
-  if (!rows.length) return activator({})
-  return h(VTooltip, { location: 'top' }, {
-    activator: ({ props }) => activator(props),
-    default: () => rows.map((line, i) => h('div', { key: i }, line)),
-  })
-}
-
-// The 3 tooltip rows for a metric: name / value / meaning.
-function metricLines(t, name, value, meaning) {
+// The metric tooltip: name / value / meaning, one per line. Joined with "\n"
+// so the host renders it as a multi-row v-tooltip; empty rows are dropped.
+function metricTitle(t, name, value, meaning) {
   const label = msg(t, 'service:qa:sonarqube:value') || 'Value'
-  return [name, `${label}: ${value}`, meaning]
+  return [name, `${label}: ${value}`, meaning].filter(Boolean).join('\n')
 }
 
 // Build one metric badge VNode for measure `m` = `value`. The badge text is the
-// compact form; the v-tooltip carries the metric's name, full value and meaning.
+// compact form; its `title:` carries the metric's name, full value and meaning.
 function metricNode(m, value, t) {
   const short = m.endsWith('_rating') ? m.slice(0, -'_rating'.length) : null
   const name = msg(t, `service:qa:sonarqube:metric:${m}`)
@@ -104,15 +84,13 @@ function metricNode(m, value, t) {
     const grade = Math.floor(Number(value))
     const color = (grade >= 1 && RATING_COLORS[grade - 1]) || DEFAULT_COLOR
     const letter = grade >= 1 ? String.fromCharCode(64 + grade) : '?' // 1→A, 2→B…
-    return tip(metricLines(t, name, letter, meaning),
-      (p) => h('span', { ...p, class: `sq-metric sq-rating sq-${m}`, style: `${LABEL_STYLE}background:${color};` }, letter))
+    return h('span', { class: `sq-metric sq-rating sq-${m}`, style: `${LABEL_STYLE}background:${color};`, title: metricTitle(t, name, letter, meaning) }, letter)
   }
 
   if (m.endsWith('ncloc')) {
     const n = Number(value)
     const size = n < 1000 ? 'XS' : n < 10000 ? 'S' : n < 100000 ? 'M' : n < 500000 ? 'L' : 'XL'
-    return tip(metricLines(t, name, value, meaning),
-      (p) => h('span', { ...p, class: 'sq-metric sq-ncloc', style: NCLOC_STYLE }, size))
+    return h('span', { class: 'sq-metric sq-ncloc', style: NCLOC_STYLE, title: metricTitle(t, name, value, meaning) }, size)
   }
 
   // Neutral numeric metric: badge is compacted (K/M/G); the tooltip keeps the
@@ -123,8 +101,7 @@ function metricNode(m, value, t) {
   if (n > 1e9) { display = Math.round(n / 1e9); badgeUnit = 'G' }
   else if (n > 1e6) { display = Math.round(n / 1e6); badgeUnit = 'M' }
   else if (n > 1e3) { display = Math.round(n / 1e3); badgeUnit = 'K' }
-  return tip(metricLines(t, name, `${value}${unit || ''}`, meaning),
-    (p) => h('span', { ...p, class: `sq-metric sq-${m}`, style: `${LABEL_STYLE}background:${DEFAULT_COLOR};` }, `${display}${badgeUnit || ''}`))
+  return h('span', { class: `sq-metric sq-${m}`, style: `${LABEL_STYLE}background:${DEFAULT_COLOR};`, title: metricTitle(t, name, `${value}${unit || ''}`, meaning) }, `${display}${badgeUnit || ''}`)
 }
 
 // Render every measure of `source` (a project OR a branch — both carry
@@ -157,14 +134,14 @@ function renderBranch(b, url, projectKey, t) {
     if (b.targetBranchName) lines.push(`→ ${b.targetBranchName}`)
   }
   lines.push(`${ok ? '✓' : '✗'} ${b.analysisDate || ''}`.trim())
-  const link = tip(lines, (p) => h('a', {
-    ...p,
+  const link = h('a', {
     href,
     target: '_blank',
     rel: 'noopener noreferrer',
     class: 'sq-branch-link',
     style: 'display:inline-flex;align-items:center;gap:3px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600;color:inherit;text-decoration:none;',
-  }, [h(VIcon, { size: 'x-small' }, () => (isPr ? 'mdi-pound' : 'mdi-source-branch')), b.pullRequestKey || b.name]))
+    title: lines.filter(Boolean).join('\n'),
+  }, [h(VIcon, { size: 'x-small' }, () => (isPr ? 'mdi-pound' : 'mdi-source-branch')), b.pullRequestKey || b.name])
   const metrics = renderMetrics(b, t)
   return h('div', { class: 'sq-branch', style: 'display:flex;align-items:center;gap:6px;' }, metrics ? [link, metrics] : [link])
 }
