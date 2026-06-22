@@ -1,7 +1,7 @@
 /*
  * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
  */
-package org.ligoj.app.plugin.qa.sonar;
+package org.ligoj.app.plugin.sonar;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

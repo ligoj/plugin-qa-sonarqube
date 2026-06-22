@@ -1,7 +1,7 @@
 /*
  * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
  */
-package org.ligoj.app.plugin.qa.sonar;
+package org.ligoj.app.plugin.sonar;
 
 import jakarta.transaction.Transactional;
 import org.apache.commons.io.IOUtils;
