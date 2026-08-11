@@ -7,10 +7,12 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.ligoj.app.AbstractServerTest;
 import org.ligoj.bootstrap.core.curl.CurlRequest;
-import org.mockito.Mockito;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 /**
  * Test class of {@link SonarCurlProcessor}
@@ -21,9 +23,9 @@ class SonarCurlProcessorTest extends AbstractServerTest {
 		try (// Coverage only
 				var processor = new SonarCurlProcessor(version,
 						Map.of(SonarPluginResource.PARAMETER_USER, token, SonarPluginResource.PARAMETER_PASSWORD, ""))) {
-			final var request = Mockito.mock(CurlRequest.class);
+			final var request = mock(CurlRequest.class);
 			final var headers = new HashMap<String, String>();
-			Mockito.doReturn(headers).when(request).getHeaders();
+			doReturn(headers).when(request).getHeaders();
 			processor.process(request);
 			Assertions.assertEquals("Basic " + auth, request.getHeaders().get("Authorization"));
 		}
@@ -43,9 +45,9 @@ class SonarCurlProcessorTest extends AbstractServerTest {
 	void sonarCurlProcessorNoCredentials() {
 		try (// Coverage only
 				var processor = new SonarCurlProcessor("9.9.3", new HashMap<>())) {
-			final var request = Mockito.mock(CurlRequest.class);
+			final var request = mock(CurlRequest.class);
 			final var headers = new HashMap<String, String>();
-			Mockito.doReturn(headers).when(request).getHeaders();
+			doReturn(headers).when(request).getHeaders();
 			processor.process(request);
 			Assertions.assertNull(request.getHeaders().get("Authorization"));
 		}
