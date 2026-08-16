@@ -3,9 +3,6 @@
  */
 package org.ligoj.app.plugin.sonar;
 
-import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +23,9 @@ import org.ligoj.bootstrap.core.validation.ValidationJsonException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
 
-import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -131,9 +129,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 *
 	 * @param parameters the project parameters.
 	 * @return project details.
-	 * @throws IOException When JSON parsing failed.
 	 */
-	protected SonarProject validateProject(final Map<String, String> parameters) throws IOException {
+	protected SonarProject validateProject(final Map<String, String> parameters)  {
 		// Get project's configuration
 		final var id = ObjectUtils.getIfNull(parameters.get(PARAMETER_PROJECT), "0");
 		final var result = getProject(parameters, id);
@@ -226,9 +223,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @param parameters     The subscription parameters.
 	 * @param formatCriteria Optional criteria
 	 * @return The gathered SonarQube projects data.
-	 * @throws IOException When JSON parsing failed.
 	 */
-	protected List<SonarProject> getProjects(final Map<String, String> parameters, final String formatCriteria) throws IOException {
+	protected List<SonarProject> getProjects(final Map<String, String> parameters, final String formatCriteria) {
 		final var version = getVersion(parameters);
 		if (is63API(version)) {
 			return objectMapper.readValue(getResource(version, parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
@@ -248,9 +244,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @param parameters The subscription parameters.
 	 * @param id         The SonarQube project identifier (internal id or key).
 	 * @return The gathered SonarQube data.
-	 * @throws IOException When JSON parsing failed.
 	 */
-	protected SonarProject getProject(final Map<String, String> parameters, final String id) throws IOException {
+	protected SonarProject getProject(final Map<String, String> parameters, final String id) {
 		final var version = getVersion(parameters);
 		final var encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8);
 		List<SonarBranch> branches = Collections.emptyList();
@@ -296,7 +291,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * Retrieve branch details of a project. Only for 6.6 SonarQube versions.
 	 */
 	private List<SonarBranch> getSonarBranches(final String version, final Map<String, String> parameters, final String encodedId, final int maxBranches,
-			final String defaultMetrics, final String queryUrl) throws JsonProcessingException {
+			final String defaultMetrics, final String queryUrl) {
 		final var branchesAsJson = getResource(version, parameters, "api/project_branches/list?project=" + encodedId);
 		final var branches = objectMapper.readValue(unwrap(Objects.requireNonNullElse(branchesAsJson, "{}")),
 						new TypeReference<List<SonarBranch>>() {
@@ -353,13 +348,12 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @param node     the node to be tested with given parameters.
 	 * @param criteria the search criteria.
 	 * @return project names matching the criteria.
-	 * @throws IOException When JSON parsing failed.
 	 */
 	@GET
 	@Path("{node}/{criteria}")
 	@Consumes(MediaType.APPLICATION_JSON)
 	public List<SonarProject> findAllByName(@PathParam("node") final String node,
-			@PathParam("criteria") final String criteria) throws IOException {
+			@PathParam("criteria") final String criteria) {
 
 		// Prepare the context, an ordered set of projects
 		final var format = new NormalizeFormat();
@@ -392,7 +386,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	}
 
 	@Override
-	public String getLastVersion() throws Exception {
+	public String getLastVersion() {
 		return versionUtils.getLatestReleasedVersionName(versionServer, "SONAR");
 	}
 
