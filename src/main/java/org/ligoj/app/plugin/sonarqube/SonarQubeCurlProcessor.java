@@ -1,7 +1,7 @@
 /*
  * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
  */
-package org.ligoj.app.plugin.sonar;
+package org.ligoj.app.plugin.sonarqube;
 
 import org.ligoj.bootstrap.core.curl.CurlProcessor;
 import org.ligoj.bootstrap.core.curl.HttpResponseCallback;
@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 /**
  * SonarQube processor.
  */
-public class SonarCurlProcessor extends SessionAuthCurlProcessor {
+public class SonarQubeCurlProcessor extends SessionAuthCurlProcessor {
 
 	/**
 	 * Pattern validating one of valid SonarQube global analysis, project analysis or user token.
@@ -27,7 +27,7 @@ public class SonarCurlProcessor extends SessionAuthCurlProcessor {
 	 * @param version The remote SonarQube version
 	 * @param parameters the SonarQube parameters.
 	 */
-	public SonarCurlProcessor(final String version, final Map<String, String> parameters) {
+	public SonarQubeCurlProcessor(final String version, final Map<String, String> parameters) {
 		this(version, parameters, CurlProcessor.DEFAULT_CALLBACK);
 	}
 
@@ -38,7 +38,7 @@ public class SonarCurlProcessor extends SessionAuthCurlProcessor {
 	 * @param parameters the SonarQube parameters.
 	 * @param callback   Not <code>null</code> {@link HttpResponseCallback} used for each response.
 	 */
-	public SonarCurlProcessor(final String version, final Map<String, String> parameters, final HttpResponseCallback callback) {
+	public SonarQubeCurlProcessor(final String version, final Map<String, String> parameters, final HttpResponseCallback callback) {
 		super(getBasicUser(version, parameters), getBasicPassword(version, parameters), callback);
 	}
 
@@ -65,8 +65,8 @@ public class SonarCurlProcessor extends SessionAuthCurlProcessor {
 	 * @return The value for BasicAuthentication's user part depending on the available SonarQube credentials materials.
 	 */
 	private static String getBasicUser(final String version, final Map<String, String> parameters) {
-		final String username = parameters.get(SonarPluginResource.PARAMETER_USER);
-		final String password = parameters.get(SonarPluginResource.PARAMETER_PASSWORD);
+		final String username = parameters.get(SonarQubePluginResource.PARAMETER_USER);
+		final String password = parameters.get(SonarQubePluginResource.PARAMETER_PASSWORD);
 		return isToken(version, password) ? password : username;
 	}
 
@@ -78,7 +78,7 @@ public class SonarCurlProcessor extends SessionAuthCurlProcessor {
 	 * @return The value for BasicAuthentication's password part depending on the available SonarQube credentials materials.
 	 */
 	private static String getBasicPassword(final String version,final Map<String, String> parameters) {
-		final String password = parameters.get(SonarPluginResource.PARAMETER_PASSWORD);
+		final String password = parameters.get(SonarQubePluginResource.PARAMETER_PASSWORD);
 		return isToken(version, password) ? "" : password;
 	}
 }

@@ -1,7 +1,7 @@
 /*
  * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
  */
-package org.ligoj.app.plugin.sonar;
+package org.ligoj.app.plugin.sonarqube;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -22,7 +22,7 @@ import java.util.Map;
 @Getter
 @Setter
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SonarProject extends NamedBean<String> implements IDescribableBean<String> {
+public class SonarQubeProject extends NamedBean<String> implements IDescribableBean<String> {
 
 	/**
 	 * SID
@@ -37,7 +37,7 @@ public class SonarProject extends NamedBean<String> implements IDescribableBean<
 	@JsonProperty("msr")
 	@JsonAlias("measures")
 	@Transient
-	private List<SonarMeasure> rawMeasures;
+	private List<SonarQubeMeasure> rawMeasures;
 
 	/**
 	 * Mapped values for easiest traversals.
@@ -47,7 +47,7 @@ public class SonarProject extends NamedBean<String> implements IDescribableBean<
 	/**
 	 * List of branches.
 	 */
-	private List<SonarBranch> branches;
+	private List<SonarQubeBranch> branches;
 
 	/**
 	 * Human-readable key

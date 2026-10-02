@@ -1,39 +1,33 @@
 /*
  * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
  */
-package org.ligoj.app.plugin.sonar;
+package org.ligoj.app.plugin.sonarqube;
 
-import java.io.Serializable;
-
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Map;
+
 /**
- * Sonar measure.
+ * SonarQube branch.
  */
 @Getter
 @Setter
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SonarMeasure implements Serializable {
+public class SonarQubeBranch extends SonarQubeProject {
 
 	/**
 	 * SID
 	 */
 	private static final long serialVersionUID = 1L;
 
-	@JsonProperty("key")
-	@JsonAlias("metric")
-	private String key;
-
-	/**
-	 * Integer value of this measure.
-	 */
-	@JsonProperty("val")
-	@JsonAlias("value")
-	private double value;
-
+	private String type;
+	@JsonProperty("isMain")
+	private boolean isMain;
+	private String pullRequestKey;
+	private String targetBranchName;
+	private String analysisDate;
+	private Map<String, String> status;
 }

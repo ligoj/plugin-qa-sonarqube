@@ -1,7 +1,7 @@
 /*
  * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
  */
-package org.ligoj.app.plugin.sonar;
+package org.ligoj.app.plugin.sonarqube;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -34,11 +34,11 @@ import java.util.stream.Collectors;
 /**
  * Sonar resource.
  */
-@Path(SonarPluginResource.URL)
+@Path(SonarQubePluginResource.URL)
 @Service
 @Produces(MediaType.APPLICATION_JSON)
 @Slf4j
-public class SonarPluginResource extends AbstractToolPluginResource implements QaServicePlugin {
+public class SonarQubePluginResource extends AbstractToolPluginResource implements QaServicePlugin {
 
 	/**
 	 * Default set of metrics collected from Sonar
@@ -130,7 +130,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @param parameters the project parameters.
 	 * @return project details.
 	 */
-	protected SonarProject validateProject(final Map<String, String> parameters)  {
+	protected SonarQubeProject validateProject(final Map<String, String> parameters)  {
 		// Get project's configuration
 		final var id = ObjectUtils.getIfNull(parameters.get(PARAMETER_PROJECT), "0");
 		final var result = getProject(parameters, id);
@@ -195,7 +195,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @return The JSON data.
 	 */
 	protected String getResource(final String version, final Map<String, String> parameters, final String resource) {
-		return getResource(new SonarCurlProcessor(version, parameters), parameters.get(PARAMETER_URL), resource);
+		return getResource(new SonarQubeCurlProcessor(version, parameters), parameters.get(PARAMETER_URL), resource);
 	}
 
 	/**
@@ -224,11 +224,11 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @param formatCriteria Optional criteria
 	 * @return The gathered SonarQube projects data.
 	 */
-	protected List<SonarProject> getProjects(final Map<String, String> parameters, final String formatCriteria) {
+	protected List<SonarQubeProject> getProjects(final Map<String, String> parameters, final String formatCriteria) {
 		final var version = getVersion(parameters);
 		if (is63API(version)) {
 			return objectMapper.readValue(getResource(version, parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
-					new TypeReference<SonarProjectList>() {
+					new TypeReference<SonarQubeProjectList>() {
 						// Nothing to override
 					}).getComponents();
 		}
@@ -245,10 +245,10 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	 * @param id         The SonarQube project identifier (internal id or key).
 	 * @return The gathered SonarQube data.
 	 */
-	protected SonarProject getProject(final Map<String, String> parameters, final String id) {
+	protected SonarQubeProject getProject(final Map<String, String> parameters, final String id) {
 		final var version = getVersion(parameters);
 		final var encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8);
-		List<SonarBranch> branches = Collections.emptyList();
+		List<SonarQubeBranch> branches = Collections.emptyList();
 
 		// Get the JSON project
 		final String queryUrl;
@@ -266,9 +266,9 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		}
 
 		// Parse the JSON project from the JSON
-		final SonarProject project;
+		final SonarQubeProject project;
 		if (is63API(version)) {
-			project = objectMapper.readValue(unwrap(projectAsJson), SonarProject.class);
+			project = objectMapper.readValue(unwrap(projectAsJson), SonarQubeProject.class);
 			if (is66API(version)) {
 				// Parse and build the project's branches from the JSON
 				final int maxBranches = NumberUtils.toInt(getParameter(parameters, PARAMETER_MAX_BRANCHES, String.valueOf(DEFAULT_MAX_BRANCHES)));
@@ -277,7 +277,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 				}
 			}
 		} else {
-			project = objectMapper.readValue(Strings.CS.removeEnd(Strings.CS.removeStart(projectAsJson, "["), "]"), SonarProject.class);
+			project = objectMapper.readValue(Strings.CS.removeEnd(Strings.CS.removeStart(projectAsJson, "["), "]"), SonarQubeProject.class);
 		}
 
 		// Map nicely the measures
@@ -290,11 +290,11 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	/**
 	 * Retrieve branch details of a project. Only for 6.6 SonarQube versions.
 	 */
-	private List<SonarBranch> getSonarBranches(final String version, final Map<String, String> parameters, final String encodedId, final int maxBranches,
+	private List<SonarQubeBranch> getSonarBranches(final String version, final Map<String, String> parameters, final String encodedId, final int maxBranches,
 			final String defaultMetrics, final String queryUrl) {
 		final var branchesAsJson = getResource(version, parameters, "api/project_branches/list?project=" + encodedId);
 		final var branches = objectMapper.readValue(unwrap(Objects.requireNonNullElse(branchesAsJson, "{}")),
-						new TypeReference<List<SonarBranch>>() {
+						new TypeReference<List<SonarQubeBranch>>() {
 							// Nothing to override
 						}).stream()
 				.sorted((b1, b2) -> {
@@ -315,7 +315,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 						+ "&branch=" + URLEncoder.encode(b.getName(), StandardCharsets.UTF_8));
 				if (branchesMetricsAsJson != null) {
 					try {
-						final var branchesMetrics = objectMapper.readValue(unwrap(branchesMetricsAsJson), SonarProject.class);
+						final var branchesMetrics = objectMapper.readValue(unwrap(branchesMetricsAsJson), SonarQubeProject.class);
 
 						// Complete with the branch measures
 						b.setMeasuresAsMap(sanitizeMeasures(branchesMetrics));
@@ -328,8 +328,8 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 		return branches;
 	}
 
-	private Map<String, Integer> sanitizeMeasures(SonarProject project) {
-		return project.getRawMeasures().stream().collect(Collectors.toMap(SonarMeasure::getKey, v -> (int) v.getValue()));
+	private Map<String, Integer> sanitizeMeasures(SonarQubeProject project) {
+		return project.getRawMeasures().stream().collect(Collectors.toMap(SonarQubeMeasure::getKey, v -> (int) v.getValue()));
 	}
 
 	/**
@@ -352,7 +352,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 	@GET
 	@Path("{node}/{criteria}")
 	@Consumes(MediaType.APPLICATION_JSON)
-	public List<SonarProject> findAllByName(@PathParam("node") final String node,
+	public List<SonarQubeProject> findAllByName(@PathParam("node") final String node,
 			@PathParam("criteria") final String criteria) {
 
 		// Prepare the context, an ordered set of projects
@@ -362,7 +362,7 @@ public class SonarPluginResource extends AbstractToolPluginResource implements Q
 
 		// Get the projects and parse them
 		final var projectsRaw = getProjects(parameters, formatCriteria);
-		final var result = new TreeMap<String, SonarProject>();
+		final var result = new TreeMap<String, SonarQubeProject>();
 		for (final var project : projectsRaw) {
 			final var name = StringUtils.trimToNull(project.getName());
 			final var key = project.getKey();

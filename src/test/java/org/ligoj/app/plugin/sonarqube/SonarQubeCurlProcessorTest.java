@@ -1,7 +1,7 @@
 /*
  * Licensed under MIT (https://github.com/ligoj/ligoj/blob/master/LICENSE)
  */
-package org.ligoj.app.plugin.sonar;
+package org.ligoj.app.plugin.sonarqube;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -15,14 +15,14 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 /**
- * Test class of {@link SonarCurlProcessor}
+ * Test class of {@link SonarQubeCurlProcessor}
  */
-class SonarCurlProcessorTest extends AbstractServerTest {
+class SonarQubeCurlProcessorTest extends AbstractServerTest {
 
 	private void sonarCurlProcessorToken(final String version, final String token, final String auth) {
 		try (// Coverage only
-				var processor = new SonarCurlProcessor(version,
-						Map.of(SonarPluginResource.PARAMETER_USER, token, SonarPluginResource.PARAMETER_PASSWORD, ""))) {
+				var processor = new SonarQubeCurlProcessor(version,
+						Map.of(SonarQubePluginResource.PARAMETER_USER, token, SonarQubePluginResource.PARAMETER_PASSWORD, ""))) {
 			final var request = mock(CurlRequest.class);
 			final var headers = new HashMap<String, String>();
 			doReturn(headers).when(request).getHeaders();
@@ -44,7 +44,7 @@ class SonarCurlProcessorTest extends AbstractServerTest {
 	@Test
 	void sonarCurlProcessorNoCredentials() {
 		try (// Coverage only
-				var processor = new SonarCurlProcessor("9.9.3", new HashMap<>())) {
+				var processor = new SonarQubeCurlProcessor("9.9.3", new HashMap<>())) {
 			final var request = mock(CurlRequest.class);
 			final var headers = new HashMap<String, String>();
 			doReturn(headers).when(request).getHeaders();
