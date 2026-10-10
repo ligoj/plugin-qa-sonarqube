@@ -162,11 +162,12 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 			throw new ValidationJsonException(PARAMETER_USER, "sonar-login");
 		}
 
-		// Check the user has enough rights to access to the provisioning page
+		// Check the user has enough rights to link a project: browsing the projects. The administration rights are not
+		// required, a global analysis token is enough.
 		if (StringUtils.isNotBlank(version)) {
 			final String checkRights;
 			if (is63API(version)) {
-				checkRights = getResource(parameters, "api/projects/search");
+				checkRights = getResource(parameters, "api/components/search?qualifiers=TRK&ps=1");
 			} else {
 				checkRights = getResource(parameters, "provisioning");
 			}
@@ -226,10 +227,18 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	protected List<SonarQubeProject> getProjects(final Map<String, String> parameters, final String formatCriteria) {
 		final var version = getVersion(parameters);
 		if (is63API(version)) {
-			return objectMapper.readValue(getResource(parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
-					new TypeReference<SonarQubeProjectList>() {
-						// Nothing to override
-					}).getComponents();
+			final var query = URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8);
+			// The administration search also matches a part of the project key, but requires the "Administer System"
+			// permission
+			var projectsAsJson = getResource(parameters, "api/projects/search?q=" + query);
+			if (projectsAsJson == null) {
+				// Without this permission, such as with a global analysis token: the projects the credentials can browse.
+				// A query of less than 2 characters is refused, the projects are then filtered by the caller.
+				projectsAsJson = getResource(parameters, "api/components/search?qualifiers=TRK" + (formatCriteria.length() < 2 ? "" : "&q=" + query));
+			}
+			return objectMapper.readValue(projectsAsJson, new TypeReference<SonarQubeProjectList>() {
+				// Nothing to override
+			}).getComponents();
 		}
 		return objectMapper.readValue(getResource(parameters, "api/resources?format=json"),
 				new TypeReference<>() {

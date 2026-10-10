@@ -158,7 +158,7 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 	void link63() throws Exception {
 		mockVersion63();
 		mockSession();
-		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("<html></html>")));
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK&ps=1")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
 		httpServer.stubFor(get(urlEqualTo("/api/measures/component?component=fr.company1%3Aproject1&metricKeys=ncloc,coverage,sqale_rating,security_rating,reliability_rating,security_review_rating"))
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody(IOUtils.toString(
 						new ClassPathResource("mock-server/sonar/sonar-resource-16010_6.3.json").getInputStream(), StandardCharsets.UTF_8))));
@@ -316,7 +316,7 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 	void validateAdminAccess63() throws Exception {
 		mockVersion63();
 		mockSession();
-		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK&ps=1")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
 		httpServer.start();
 
 		final var version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
@@ -336,13 +336,45 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":false}")));
 		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json")).withBasicAuth(token, "")
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
-		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).withBasicAuth(token, "")
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK&ps=1")).withBasicAuth(token, "")
 				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
 		httpServer.start();
 
 		final var parameters = new HashMap<>(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 		parameters.put(SonarQubePluginResource.PARAMETER_PASSWORD, token);
 		Assertions.assertEquals("26.6.0.123539", resource.validateAdminAccess(parameters));
+	}
+
+	/**
+	 * A global analysis token links projects: SonarQube refuses it the "Administer System" permission of the project
+	 * administration search, but lets it browse the projects and read their measures.
+	 */
+	@Test
+	void validateAdminAccessGlobalAnalysisToken() {
+		final var token = "sqa_0123456789abcdef0123456789abcdef01234567";
+		httpServer.stubFor(get(urlEqualTo("/api/server/version")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("26.6.0.123539")));
+		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json")).withBasicAuth(token, "")
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		httpServer.stubFor(get(urlMatching("/api/projects/search.*")).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK&ps=1")).withBasicAuth(token, "")
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"components\":[]}")));
+		httpServer.start();
+
+		final var parameters = new HashMap<>(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
+		parameters.put(SonarQubePluginResource.PARAMETER_PASSWORD, token);
+		Assertions.assertEquals("26.6.0.123539", resource.validateAdminAccess(parameters));
+	}
+
+	@Test
+	void validateAdminAccessNoBrowseRight() {
+		httpServer.stubFor(get(urlEqualTo("/api/server/version")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("26.6.0.123539")));
+		mockSession();
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK&ps=1")).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+		httpServer.start();
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class,
+						() -> resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"))),
+				SonarQubePluginResource.PARAMETER_USER, "sonar-rights");
 	}
 
 	@Test
@@ -426,5 +458,39 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 		Assertions.assertEquals("Some1 - Project1", projects.get(1).getName());
 		Assertions.assertEquals("Parent defining top level global configuration of projects.", projects.get(0).getDescription());
 		Assertions.assertEquals("fr.company1:project1", projects.get(1).getKey());
+	}
+
+	/**
+	 * Without the "Administer System" permission, such as with a global analysis token, the projects the credentials
+	 * can browse are searched.
+	 */
+	@Test
+	void findProjectByNameWithoutAdministration() throws Exception {
+		mockVersion63();
+		httpServer.stubFor(get(urlMatching("/api/projects/search.*")).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK&q=COM")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)
+				.withBody(IOUtils.toString(new ClassPathResource("mock-server/sonar/sonar-projects.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+
+		final var projects = resource.findAllByName("service:qa:sonarqube:bpr", "Com");
+		Assertions.assertEquals(2, projects.size());
+		Assertions.assertEquals("fr.company1:project1", projects.get(1).getKey());
+		Assertions.assertEquals("fr.company1:project1", projects.get(1).getId());
+	}
+
+	/**
+	 * The component search refuses a query of less than 2 characters: the browsed projects are filtered locally.
+	 */
+	@Test
+	void findProjectByNameWithoutAdministrationOneCharacter() throws Exception {
+		mockVersion63();
+		httpServer.stubFor(get(urlMatching("/api/projects/search.*")).willReturn(aResponse().withStatus(HttpStatus.SC_FORBIDDEN)));
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)
+				.withBody(IOUtils.toString(new ClassPathResource("mock-server/sonar/sonar-projects.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+
+		final var projects = resource.findAllByName("service:qa:sonarqube:bpr", "1");
+		Assertions.assertEquals(1, projects.size());
+		Assertions.assertEquals("fr.company1:project1", projects.getFirst().getKey());
 	}
 }
