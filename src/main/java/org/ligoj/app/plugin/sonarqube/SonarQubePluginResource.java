@@ -157,7 +157,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 
 		// Check the user can logins to SonarQube with the preempted authentication processor
 		final var version = getVersion(parameters);
-		if (!StringUtils.trimToEmpty(getResource(version, parameters, "api/authentication/validate?format=json"))
+		if (!StringUtils.trimToEmpty(getResource(parameters, "api/authentication/validate?format=json"))
 				.contains("true")) {
 			throw new ValidationJsonException(PARAMETER_USER, "sonar-login");
 		}
@@ -166,9 +166,9 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 		if (StringUtils.isNotBlank(version)) {
 			final String checkRights;
 			if (is63API(version)) {
-				checkRights = getResource(version, parameters, "api/projects/search");
+				checkRights = getResource(parameters, "api/projects/search");
 			} else {
-				checkRights = getResource(version, parameters, "provisioning");
+				checkRights = getResource(parameters, "provisioning");
 			}
 			if (checkRights == null) {
 				throw new ValidationJsonException(PARAMETER_USER, "sonar-rights");
@@ -189,13 +189,12 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	 * Return a SonarQube's resource. Return <code>null</code> when the resource is
 	 * not found.
 	 *
-	 * @param version    The remote SonarQube version
 	 * @param parameters The subscription parameters.
 	 * @param resource   The SonarQube resource URL to query.
 	 * @return The JSON data.
 	 */
-	protected String getResource(final String version, final Map<String, String> parameters, final String resource) {
-		return getResource(new SonarQubeCurlProcessor(version, parameters), parameters.get(PARAMETER_URL), resource);
+	protected String getResource(final Map<String, String> parameters, final String resource) {
+		return getResource(new SonarQubeCurlProcessor(parameters), parameters.get(PARAMETER_URL), resource);
 	}
 
 	/**
@@ -214,7 +213,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 
 	@Override
 	public String getVersion(final Map<String, String> parameters) {
-		return getResource(null, parameters, "api/server/version");
+		return getResource(parameters, "api/server/version");
 	}
 
 	/**
@@ -227,12 +226,12 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	protected List<SonarQubeProject> getProjects(final Map<String, String> parameters, final String formatCriteria) {
 		final var version = getVersion(parameters);
 		if (is63API(version)) {
-			return objectMapper.readValue(getResource(version, parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
+			return objectMapper.readValue(getResource(parameters, "api/projects/search?q=" + URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8)),
 					new TypeReference<SonarQubeProjectList>() {
 						// Nothing to override
 					}).getComponents();
 		}
-		return objectMapper.readValue(getResource(version, parameters, "api/resources?format=json"),
+		return objectMapper.readValue(getResource(parameters, "api/resources?format=json"),
 				new TypeReference<>() {
 					// Nothing to override
 				});
@@ -260,7 +259,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 			queryUrl = "api/resources?format=json&resource=" + encodedId + "&metrics=";
 			defaultMetrics = DEFAULT_METRICS;
 		}
-		var projectAsJson = getResource(version, parameters, queryUrl + getParameter(parameters, PARAMETER_METRICS_OVERRIDE, defaultMetrics));
+		var projectAsJson = getResource(parameters, queryUrl + getParameter(parameters, PARAMETER_METRICS_OVERRIDE, defaultMetrics));
 		if (projectAsJson == null) {
 			return null;
 		}
@@ -273,7 +272,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 				// Parse and build the project's branches from the JSON
 				final int maxBranches = NumberUtils.toInt(getParameter(parameters, PARAMETER_MAX_BRANCHES, String.valueOf(DEFAULT_MAX_BRANCHES)));
 				if (maxBranches > 1) {
-					branches = getSonarBranches(version, parameters, encodedId, maxBranches, defaultMetrics, queryUrl);
+					branches = getSonarBranches(parameters, encodedId, maxBranches, defaultMetrics, queryUrl);
 				}
 			}
 		} else {
@@ -290,9 +289,9 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	/**
 	 * Retrieve branch details of a project. Only for 6.6 SonarQube versions.
 	 */
-	private List<SonarQubeBranch> getSonarBranches(final String version, final Map<String, String> parameters, final String encodedId, final int maxBranches,
+	private List<SonarQubeBranch> getSonarBranches(final Map<String, String> parameters, final String encodedId, final int maxBranches,
 			final String defaultMetrics, final String queryUrl) {
-		final var branchesAsJson = getResource(version, parameters, "api/project_branches/list?project=" + encodedId);
+		final var branchesAsJson = getResource(parameters, "api/project_branches/list?project=" + encodedId);
 		final var branches = objectMapper.readValue(unwrap(Objects.requireNonNullElse(branchesAsJson, "{}")),
 						new TypeReference<List<SonarQubeBranch>>() {
 							// Nothing to override
@@ -311,7 +310,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 		if (!branchMetrics.isBlank()) {
 			// Get more metrics from each branch
 			branches.parallelStream().forEach(b -> {
-				final var branchesMetricsAsJson = getResource(version, parameters, queryUrl + branchMetrics
+				final var branchesMetricsAsJson = getResource(parameters, queryUrl + branchMetrics
 						+ "&branch=" + URLEncoder.encode(b.getName(), StandardCharsets.UTF_8));
 				if (branchesMetricsAsJson != null) {
 					try {

@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.ligoj.app.AbstractServerTest;
 import org.ligoj.bootstrap.core.curl.CurlRequest;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,42 +21,70 @@ import static org.mockito.Mockito.mock;
  */
 class SonarQubeCurlProcessorTest extends AbstractServerTest {
 
-	private void sonarCurlProcessorToken(final String version, final String token, final String auth) {
-		try (// Coverage only
-				var processor = new SonarQubeCurlProcessor(version,
-						Map.of(SonarQubePluginResource.PARAMETER_USER, token, SonarQubePluginResource.PARAMETER_PASSWORD, ""))) {
+	private void assertAuthorization(final Map<String, String> parameters, final String expectedCredentials) {
+		try (var processor = new SonarQubeCurlProcessor(parameters)) {
 			final var request = mock(CurlRequest.class);
 			final var headers = new HashMap<String, String>();
 			doReturn(headers).when(request).getHeaders();
 			processor.process(request);
-			Assertions.assertEquals("Basic " + auth, request.getHeaders().get("Authorization"));
+			Assertions.assertEquals(expectedCredentials == null ? null : "Basic " + Base64.getEncoder().encodeToString(expectedCredentials.getBytes(StandardCharsets.UTF_8)),
+					request.getHeaders().get("Authorization"));
 		}
+	}
+
+	/**
+	 * A token typed in the user parameter, with an empty password.
+	 */
+	private void sonarCurlProcessorToken(final String token) {
+		assertAuthorization(Map.of(SonarQubePluginResource.PARAMETER_USER, token, SonarQubePluginResource.PARAMETER_PASSWORD, ""), token + ":");
+	}
+
+	/**
+	 * A token typed in the password parameter is sent as the login with an empty password: SonarQube rejects a
+	 * token sent as the password of a login.
+	 */
+	private void sonarCurlProcessorPassword(final String password, final String expectedCredentials) {
+		assertAuthorization(Map.of(SonarQubePluginResource.PARAMETER_USER, "admin", SonarQubePluginResource.PARAMETER_PASSWORD, password), expectedCredentials);
 	}
 
 	@Test
 	void sonarCurlProcessorTokenGlobal() {
-		sonarCurlProcessorToken("9.9.3", "sqa_1234567890123456789012345678901234567890", "c3FhXzEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTA6");
+		sonarCurlProcessorToken("sqa_1234567890123456789012345678901234567890");
 	}
 
 	@Test
 	void sonarCurlProcessorTokenUser() {
-		sonarCurlProcessorToken("9.9.3", "squ_1234567890123456789012345678901234567890", "c3F1XzEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTA6");
-	}
-
-	@Test
-	void sonarCurlProcessorNoCredentials() {
-		try (// Coverage only
-				var processor = new SonarQubeCurlProcessor("9.9.3", new HashMap<>())) {
-			final var request = mock(CurlRequest.class);
-			final var headers = new HashMap<String, String>();
-			doReturn(headers).when(request).getHeaders();
-			processor.process(request);
-			Assertions.assertNull(request.getHeaders().get("Authorization"));
-		}
+		sonarCurlProcessorToken("squ_1234567890123456789012345678901234567890");
 	}
 
 	@Test
 	void sonarCurlProcessorTokenUser92() {
-		sonarCurlProcessorToken("9.2.1", "1234567890123456789012345678901234567890", "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDo=");
+		sonarCurlProcessorToken("1234567890123456789012345678901234567890");
+	}
+
+	@Test
+	void sonarCurlProcessorNoCredentials() {
+		assertAuthorization(new HashMap<>(), null);
+	}
+
+	@Test
+	void sonarCurlProcessorTokensAsPassword() {
+		// User, global analysis and project analysis tokens, whatever the SonarQube version
+		for (final var token : new String[]{"squ_0123456789abcdef0123456789abcdef01234567", "sqa_0123456789abcdef0123456789abcdef01234567",
+				"sqp_0123456789abcdef0123456789abcdef01234567"}) {
+			sonarCurlProcessorPassword(token, token + ":");
+		}
+	}
+
+	@Test
+	void sonarCurlProcessorLegacyTokenAsPassword() {
+		// A token created before 9.4 has no prefix and stays valid after an upgrade
+		sonarCurlProcessorPassword("0123456789abcdef0123456789abcdef01234567", "0123456789abcdef0123456789abcdef01234567:");
+	}
+
+	@Test
+	void sonarCurlProcessorPassword() {
+		sonarCurlProcessorPassword("secret", "admin:secret");
+		sonarCurlProcessorPassword("squ_not-a-token", "admin:squ_not-a-token");
 	}
 }

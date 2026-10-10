@@ -96,7 +96,7 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 
 	@Test
 	void getSonarResourceInvalidUrl() {
-		resource.getResource("9.9.3", new HashMap<>(), null);
+		resource.getResource(new HashMap<>(), null);
 	}
 
 	@Test
@@ -321,6 +321,28 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 
 		final var version = resource.validateAdminAccess(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
 		Assertions.assertEquals("6.3.0.65466", version);
+	}
+
+	/**
+	 * A user token typed in the password parameter of a recent SonarQube: the token is the login, the password is
+	 * empty. SonarQube rejects a token sent as the password of the login.
+	 */
+	@Test
+	void validateAdminAccessTokenAsPassword() {
+		final var token = "squ_0123456789abcdef0123456789abcdef01234567";
+		httpServer.stubFor(get(urlEqualTo("/api/server/version")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("26.6.0.123539")));
+		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_OK)));
+		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json"))
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":false}")));
+		httpServer.stubFor(get(urlEqualTo("/api/authentication/validate?format=json")).withBasicAuth(token, "")
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"valid\":true}")));
+		httpServer.stubFor(get(urlEqualTo("/api/projects/search")).withBasicAuth(token, "")
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{}")));
+		httpServer.start();
+
+		final var parameters = new HashMap<>(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
+		parameters.put(SonarQubePluginResource.PARAMETER_PASSWORD, token);
+		Assertions.assertEquals("26.6.0.123539", resource.validateAdminAccess(parameters));
 	}
 
 	@Test
