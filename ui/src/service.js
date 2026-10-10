@@ -26,6 +26,13 @@ import { VIcon, useI18nStore, renderServiceLink, renderDetailsChip } from '@ligo
 const PARAM_URL = 'service:qa:sonarqube:url'
 const PARAM_PROJECT = 'service:qa:sonarqube:project'
 
+// The project dashboard. `/dashboard?id=<key>` is the route of SonarQube 9.9 to
+// 26.x, and later versions redirect it with its query. The legacy
+// `/dashboard/index/<key>` redirect was dropped in 10.0: it is a 404 since.
+function dashboardUrl(url, projectKey) {
+  return `${url.replace(/\/$/, '')}/dashboard?id=${encodeURIComponent(projectKey)}`
+}
+
 function renderFeatures(subscription) {
   const params = subscription?.parameters
   const url = params?.[PARAM_URL]
@@ -34,7 +41,7 @@ function renderFeatures(subscription) {
   const { t } = useI18nStore()
   return [renderServiceLink({
     icon: 'mdi-home',
-    href: `${url.replace(/\/$/, '')}/dashboard/index/${encodeURIComponent(project)}`,
+    href: dashboardUrl(url, project),
     title: t('service:qa:sonarqube:project'),
   })]
 }
@@ -126,7 +133,7 @@ function renderBranch(b, url, projectKey, t) {
   if (!url || !projectKey) return null
   const isPr = !!b.pullRequestKey
   const param = isPr ? `pullRequest=${encodeURIComponent(b.pullRequestKey)}` : `branch=${encodeURIComponent(b.name)}`
-  const href = `${url.replace(/\/$/, '')}/dashboard?id=${encodeURIComponent(projectKey)}&${param}`
+  const href = `${dashboardUrl(url, projectKey)}&${param}`
   const ok = b?.status?.qualityGateStatus === 'OK'
   const lines = [b.type, `${msg(t, 'common.name') || 'Name'}: ${b.name}`]
   if (isPr) {

@@ -20,14 +20,23 @@ describe('plugin-qa-sonarqube contract', () => {
   it('throws for an unknown feature', () => {
     expect(() => def.feature('nope')).toThrow(/no feature "nope"/)
   })
+  // `/dashboard?id=<key>` is the project dashboard of SonarQube 9.9 to 26.x. The
+  // legacy `/dashboard/index/<key>` redirect is gone since 10.0 (a 404).
   it('renderFeatures returns the dashboard link when url + project are set', () => {
     def.install()
     const vnodes = def.feature('renderFeatures', {
       parameters: { 'service:qa:sonarqube:url': 'https://sonar.example.org', 'service:qa:sonarqube:project': 'org.ligoj:app' },
     })
     expect(vnodes).toHaveLength(1)
-    expect(vnodes[0].props.href).toBe('https://sonar.example.org/dashboard/index/org.ligoj%3Aapp')
+    expect(vnodes[0].props.href).toBe('https://sonar.example.org/dashboard?id=org.ligoj%3Aapp')
     expect(vnodes[0].props.target).toBe('_blank')
+  })
+  it('renderFeatures ignores a trailing slash of the url', () => {
+    def.install()
+    const vnodes = def.feature('renderFeatures', {
+      parameters: { 'service:qa:sonarqube:url': 'https://sonar.example.org/sonar/', 'service:qa:sonarqube:project': 'org.ligoj:app' },
+    })
+    expect(vnodes[0].props.href).toBe('https://sonar.example.org/sonar/dashboard?id=org.ligoj%3Aapp')
   })
   it('renderFeatures returns [] without url or project', () => {
     def.install()
