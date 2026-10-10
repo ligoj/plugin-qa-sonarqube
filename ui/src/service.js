@@ -10,6 +10,8 @@
  *     `subscription.data.project` (populated by status/refresh). Each metric is
  *     styled by KIND: A–E *_rating grades get a graded colour, ncloc renders as
  *     a blue size circle (XS…XL), everything else a neutral compact label.
+ *   - parameterField        → the subscribe-wizard project autocomplete
+ *     (legacy `configureSubscriptionParameters`).
  *
  * TOOLTIPS ARE IMPLICIT. Every node (the dashboard button, the key chip, each
  * metric badge, each branch link) just sets a plain `title:` — including the
@@ -21,7 +23,7 @@
  * Kept free of Vue SFC imports for unit testing — VNodes only.
  */
 import { h } from 'vue'
-import { VIcon, useI18nStore, renderServiceLink, renderDetailsChip } from '@ligoj/host'
+import { VIcon, useI18nStore, renderServiceLink, renderDetailsChip, remoteSearchField } from '@ligoj/host'
 
 const PARAM_URL = 'service:qa:sonarqube:url'
 const PARAM_PROJECT = 'service:qa:sonarqube:project'
@@ -175,4 +177,22 @@ function renderDetailsFeatures(subscription) {
   return out.length ? out : null
 }
 
-export default { renderFeatures, renderDetailsKey, renderDetailsFeatures }
+// Subscribe-wizard input: the projects of the selected instance, searched as the user types. The key is stored
+// and shown: the measures and the dashboard link read a project by key.
+const ProjectField = remoteSearchField({
+  path: 'rest/service/qa/sonarqube',
+  toValue: (p) => p.key ?? p.id,
+  toSubtitle: (p) => p.key,
+  placeholder: 'service:qa:sonarqube:project-search',
+})
+
+/**
+ * Subscribe-wizard hook: the project parameter is picked among the projects of
+ * the selected SonarQube node. Null for every other parameter and when editing
+ * a node: the default type-based input is rendered.
+ */
+function parameterField({ parameter, isNode } = {}) {
+  return !isNode && parameter?.id === PARAM_PROJECT ? ProjectField : null
+}
+
+export default { renderFeatures, renderDetailsKey, renderDetailsFeatures, parameterField }

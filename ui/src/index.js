@@ -4,6 +4,8 @@
  * Tool-level plugin (`service:qa:sonarqube`). Augments the parent
  * `plugin-qa` via i18n parameter labels + row features (dashboard link,
  * project chip) merged in through plugin-qa's `subPluginIdFor` delegation.
+ * The subscribe wizard calls `parameterField` directly for the project
+ * autocomplete.
  */
 import { useI18nStore } from '@ligoj/host'
 import enMessages from './i18n/en.js'
@@ -14,6 +16,7 @@ const features = {
   renderFeatures: service.renderFeatures,
   renderDetailsKey: service.renderDetailsKey,
   renderDetailsFeatures: service.renderDetailsFeatures,
+  parameterField: service.parameterField,
 }
 
 export default {

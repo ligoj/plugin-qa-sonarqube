@@ -3,6 +3,7 @@ export default {
   'service:qa:sonarqube': 'SonarQube',
   'service:qa:sonarqube:url': 'URL',
   'service:qa:sonarqube:project': 'Project',
+  'service:qa:sonarqube:project-search': 'Search for a project by name or key…',
   'service:qa:sonarqube:key': 'Key',
   'service:qa:sonarqube:user': 'User',
   'service:qa:sonarqube:password': 'Password',
