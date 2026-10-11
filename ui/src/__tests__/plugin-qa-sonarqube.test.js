@@ -6,6 +6,15 @@ import def from '../index.js'
 beforeEach(() => { setActivePinia(createPinia()) })
 
 describe('plugin-qa-sonarqube contract', () => {
+  it('labels the connection errors of its instances', () => {
+    def.install()
+    const { t } = useI18nStore()
+    expect(t('error.rule.sonar-connection')).toBe('SonarQube cannot be reached at this URL')
+    expect(t('error.rule.sonar-login')).toBe('SonarQube refused these credentials')
+    expect(t('error.rule.sonar-rights')).toBe('These credentials cannot browse the SonarQube projects')
+    expect(t('error.rule.sonar-project')).toBe('Unknown SonarQube project')
+  })
+
   it('exposes a valid tool-level manifest', () => {
     expect(def.id).toBe('qa-sonarqube')
     expect(def.requires).toEqual(['qa'])
