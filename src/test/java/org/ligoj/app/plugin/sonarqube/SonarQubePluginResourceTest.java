@@ -26,6 +26,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 
@@ -37,6 +38,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 @Rollback
 @Transactional
 class SonarQubePluginResourceTest extends AbstractServerTest {
+	/**
+	 * A SonarQube Cloud token: 40 hexadecimal characters without prefix.
+	 */
+	private static final String CLOUD_TOKEN = "0123456789abcdef0123456789abcdef01234567";
+
 	@Autowired
 	private SonarQubePluginResource resource;
 
@@ -377,6 +383,81 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 				SonarQubePluginResource.PARAMETER_USER, "sonar-rights");
 	}
 
+	/**
+	 * The organization of a SonarQube Cloud node: optional and set on the node only, since a SonarQube Server has none.
+	 */
+	@Test
+	void organizationParameter() {
+		final var parameter = em.find(Parameter.class, SonarQubePluginResource.PARAMETER_ORGANIZATION);
+		Assertions.assertFalse(parameter.isMandatory());
+		Assertions.assertFalse(parameter.isSecured());
+		Assertions.assertTrue(parameter.getAvailableForNode());
+		Assertions.assertFalse(parameter.getAvailableForSubscription());
+	}
+
+	/**
+	 * Parameters of a SonarQube Cloud node: a token without prefix, and an optional organization.
+	 */
+	private Map<String, String> cloudParameters(final String organization) {
+		final var parameters = new HashMap<>(pvResource.getNodeParameters("service:qa:sonarqube:bpr"));
+		parameters.put(SonarQubePluginResource.PARAMETER_PASSWORD, CLOUD_TOKEN);
+		if (organization != null) {
+			parameters.put(SonarQubePluginResource.PARAMETER_ORGANIZATION, organization);
+		}
+		return parameters;
+	}
+
+	/**
+	 * SonarQube Cloud reports this version whatever its release, and refuses to search the projects without an
+	 * organization.
+	 */
+	private void mockCloud() {
+		httpServer.stubFor(get(urlEqualTo("/api/server/version")).willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("8.0.0.110499")));
+		mockSession();
+		httpServer.stubFor(get(urlMatching("/api/(components|projects)/search\\?.*")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_REQUEST)));
+	}
+
+	private void mockCloudOrganizations(final String query, final String keys) {
+		httpServer.stubFor(get(urlEqualTo("/api/organizations/search?" + query)).willReturn(aResponse().withStatus(HttpStatus.SC_OK)
+				.withBody("{\"organizations\":[" + keys + "]}")));
+	}
+
+	@Test
+	void validateAdminAccessCloud() {
+		mockCloud();
+		httpServer.stubFor(get(urlEqualTo("/api/components/search?qualifiers=TRK&ps=1&organization=my-org")).withBasicAuth(CLOUD_TOKEN, "")
+				.willReturn(aResponse().withStatus(HttpStatus.SC_OK).withBody("{\"components\":[]}")));
+		httpServer.start();
+		Assertions.assertEquals("8.0.0.110499", resource.validateAdminAccess(cloudParameters("my-org")));
+	}
+
+	@Test
+	void validateAdminAccessCloudNoOrganization() {
+		mockCloud();
+		mockCloudOrganizations("member=true", "{\"key\":\"my-org\"}");
+		httpServer.start();
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> resource.validateAdminAccess(cloudParameters(null))),
+				SonarQubePluginResource.PARAMETER_ORGANIZATION, "NotBlank");
+	}
+
+	@Test
+	void validateAdminAccessCloudUnknownOrganization() {
+		mockCloud();
+		mockCloudOrganizations("organizations=no-such-org", "");
+		httpServer.start();
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> resource.validateAdminAccess(cloudParameters("no-such-org"))),
+				SonarQubePluginResource.PARAMETER_ORGANIZATION, "sonar-organization");
+	}
+
+	@Test
+	void validateAdminAccessCloudNoBrowseRight() {
+		mockCloud();
+		mockCloudOrganizations("organizations=my-org", "{\"key\":\"my-org\"}");
+		httpServer.start();
+		MatcherUtil.assertThrows(Assertions.assertThrows(ValidationJsonException.class, () -> resource.validateAdminAccess(cloudParameters("my-org"))),
+				SonarQubePluginResource.PARAMETER_USER, "sonar-rights");
+	}
+
 	@Test
 	void validateAdminAccessConnectivityFail() {
 		httpServer.stubFor(get(urlEqualTo("/sessions/new")).willReturn(aResponse().withStatus(HttpStatus.SC_BAD_GATEWAY)));
@@ -492,5 +573,30 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 		final var projects = resource.findAllByName("service:qa:sonarqube:bpr", "1");
 		Assertions.assertEquals(1, projects.size());
 		Assertions.assertEquals("fr.company1:project1", projects.getFirst().getKey());
+	}
+
+	private void assertCloudProjects(final String search) throws IOException {
+		mockCloud();
+		httpServer.stubFor(get(urlEqualTo(search)).willReturn(aResponse().withStatus(HttpStatus.SC_OK)
+				.withBody(IOUtils.toString(new ClassPathResource("mock-server/sonar/sonar-projects.json").getInputStream(), StandardCharsets.UTF_8))));
+		httpServer.start();
+
+		// The raw search result, filtered later by name and key
+		final var projects = resource.getProjects(cloudParameters("my-org"), "COM");
+		Assertions.assertEquals(4, projects.size());
+		Assertions.assertEquals("fr.company1:project1", projects.get(1).getKey());
+	}
+
+	/**
+	 * SonarQube Cloud searches the projects of the node's organization.
+	 */
+	@Test
+	void findProjectsCloud() throws IOException {
+		assertCloudProjects("/api/projects/search?q=COM&organization=my-org");
+	}
+
+	@Test
+	void findProjectsCloudWithoutAdministration() throws IOException {
+		assertCloudProjects("/api/components/search?qualifiers=TRK&q=COM&organization=my-org");
 	}
 }

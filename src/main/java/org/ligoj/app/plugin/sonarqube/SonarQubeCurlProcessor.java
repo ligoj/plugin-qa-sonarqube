@@ -17,7 +17,8 @@ public class SonarQubeCurlProcessor extends SessionAuthCurlProcessor {
 
 	/**
 	 * Pattern of a SonarQube token: a global analysis, project analysis or user token prefixed since 9.4, or a token
-	 * created before, still valid after an upgrade. Not depending on the version, itself read with these credentials.
+	 * created before, still valid after an upgrade. A SonarQube Cloud token has no prefix either. Not depending on the
+	 * version, itself read with these credentials.
 	 */
 	private static final Pattern TOKEN_PATTERN = Pattern.compile("(sq[aup]_)?[a-f0-9]{40}");
 

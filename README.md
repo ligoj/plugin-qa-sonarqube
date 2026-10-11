@@ -15,6 +15,7 @@ Provides the following features :
   without [sonarqube-community-branch-plugin](https://github.com/mc1arke/sonarqube-community-branch-plugin)
 - Detect SonarQube API (`< 6,3`, `>=6.3` and `>=6.6`) for compatibility
 - Tested on all SonarQube versions from `4.0` to `9.9.3`
+- Compatible with SonarQube Cloud, in any region such as `https://sonarcloud.io` or `https://sonarqube.us`, with a token and an organization
 
 # Plugin parameters
 
@@ -25,5 +26,6 @@ Provides the following features :
 | service:qa:sonarqube:metrics-branches | `ncloc,coverage,sqale_rating` | Retrieved and displayed metrics of each branch. By default, the same as the main metrics. When non-empty, one API call is executed per branch.         |
 | service:qa:sonarqube:user             |                               | SonarQube's username. Can be any string when password is a SonarQube API token.                                                                        |
 | service:qa:sonarqube:password         |                               | SonarQube's password. Only API tokens prior 9.3 (generic) and 9.3+ of type `user` and `global` are supported. This parameter is encrypted in database. |
+| service:qa:sonarqube:organization     |                               | SonarQube Cloud organization key, required to search its projects. Empty for a SonarQube Server.                                                      |
 | service:qa:sonarqube:project          |                               | Linked project identifier. May be an integer or a string depending on the SonarQube API version.                                                       |
 | service:qa:sonarqube:url              |                               | SonarQube base URL. For sample `http://localhost:9000`.                                                                                                |

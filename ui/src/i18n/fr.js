@@ -7,11 +7,17 @@ export default {
   'service:qa:sonarqube:key': 'Clé',
   'service:qa:sonarqube:user': 'Utilisateur',
   'service:qa:sonarqube:password': 'Mot de passe',
+  // Aides du formulaire de nœud : les clés `<id>-description`
+  'service:qa:sonarqube:user-description': "N'importe quelle valeur quand le mot de passe est un jeton",
+  'service:qa:sonarqube:password-description': "Un mot de passe ou un jeton. SonarQube Cloud n'accepte qu'un jeton",
+  'service:qa:sonarqube:organization': 'Organisation',
+  'service:qa:sonarqube:organization-description': "SonarQube Cloud uniquement : la clé de l'organisation",
   // Erreurs de connexion d'une instance (test de connexion, statut du nœud)
   'error.rule.sonar-connection': 'SonarQube est injoignable à cette URL',
   'error.rule.sonar-login': 'SonarQube refuse ces identifiants',
   'error.rule.sonar-rights': 'Ces identifiants ne peuvent pas parcourir les projets SonarQube',
   'error.rule.sonar-project': 'Projet SonarQube inconnu',
+  'error.rule.sonar-organization': 'Organisation SonarQube Cloud inconnue',
   // Badges de métriques (renderDetailsFeatures). Chaque info-bulle affiche
   // nom / valeur / signification — d'où un nom court `:<m>` et un `:<m>:meaning`.
   'service:qa:sonarqube:value': 'Valeur',

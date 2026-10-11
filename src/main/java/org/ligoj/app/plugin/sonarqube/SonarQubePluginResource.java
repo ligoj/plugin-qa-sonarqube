@@ -101,6 +101,11 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	 */
 	public static final String PARAMETER_URL = KEY + ":url";
 
+	/**
+	 * SonarQube Cloud organization key, required to search its projects. A SonarQube Server has no organization.
+	 */
+	public static final String PARAMETER_ORGANIZATION = KEY + ":organization";
+
 	@Autowired
 	private ObjectMapperTrim objectMapper;
 
@@ -167,15 +172,50 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 		if (StringUtils.isNotBlank(version)) {
 			final String checkRights;
 			if (is63API(version)) {
-				checkRights = getResource(parameters, "api/components/search?qualifiers=TRK&ps=1");
+				checkRights = getResource(parameters, "api/components/search?qualifiers=TRK&ps=1" + organizationFilter(parameters));
 			} else {
 				checkRights = getResource(parameters, "provisioning");
 			}
 			if (checkRights == null) {
+				validateOrganization(parameters);
 				throw new ValidationJsonException(PARAMETER_USER, "sonar-rights");
 			}
 		}
 		return version;
+	}
+
+	/**
+	 * Explain a refused project search by the organization of SonarQube Cloud, the only server having organizations: it
+	 * searches the projects of an existing organization only.
+	 *
+	 * @param parameters the server parameters.
+	 */
+	private void validateOrganization(final Map<String, String> parameters) {
+		final var organization = StringUtils.trimToNull(parameters.get(PARAMETER_ORGANIZATION));
+		final var organizations = getResource(parameters, "api/organizations/search?"
+				+ (organization == null ? "member=true" : "organizations=" + URLEncoder.encode(organization, StandardCharsets.UTF_8)));
+		if (organizations == null) {
+			// Not SonarQube Cloud: the organization is not the cause
+			return;
+		}
+		if (organization == null) {
+			throw new ValidationJsonException(PARAMETER_ORGANIZATION, "NotBlank");
+		}
+		if (objectMapper.readTree(organizations).path("organizations").isEmpty()) {
+			throw new ValidationJsonException(PARAMETER_ORGANIZATION, "sonar-organization", organization);
+		}
+	}
+
+	/**
+	 * Return the query parameter restricting a project search to the organization of the node, required by SonarQube
+	 * Cloud.
+	 *
+	 * @param parameters the server parameters.
+	 * @return The query parameter, empty without organization.
+	 */
+	private String organizationFilter(final Map<String, String> parameters) {
+		final var organization = StringUtils.trimToNull(parameters.get(PARAMETER_ORGANIZATION));
+		return organization == null ? "" : "&organization=" + URLEncoder.encode(organization, StandardCharsets.UTF_8);
 	}
 
 	private boolean is63API(final String version) {
@@ -228,13 +268,14 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 		final var version = getVersion(parameters);
 		if (is63API(version)) {
 			final var query = URLEncoder.encode(formatCriteria, StandardCharsets.UTF_8);
+			final var organization = organizationFilter(parameters);
 			// The administration search also matches a part of the project key, but requires the "Administer System"
 			// permission
-			var projectsAsJson = getResource(parameters, "api/projects/search?q=" + query);
+			var projectsAsJson = getResource(parameters, "api/projects/search?q=" + query + organization);
 			if (projectsAsJson == null) {
 				// Without this permission, such as with a global analysis token: the projects the credentials can browse.
 				// A query of less than 2 characters is refused, the projects are then filtered by the caller.
-				projectsAsJson = getResource(parameters, "api/components/search?qualifiers=TRK" + (formatCriteria.length() < 2 ? "" : "&q=" + query));
+				projectsAsJson = getResource(parameters, "api/components/search?qualifiers=TRK" + (formatCriteria.length() < 2 ? "" : "&q=" + query) + organization);
 			}
 			return objectMapper.readValue(projectsAsJson, new TypeReference<SonarQubeProjectList>() {
 				// Nothing to override

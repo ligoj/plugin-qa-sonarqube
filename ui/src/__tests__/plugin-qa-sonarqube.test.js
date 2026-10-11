@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useI18nStore } from '@ligoj/host'
 import def from '../index.js'
+import enMessages from '../i18n/en.js'
+import frMessages from '../i18n/fr.js'
 
 beforeEach(() => { setActivePinia(createPinia()) })
 
@@ -13,6 +15,22 @@ describe('plugin-qa-sonarqube contract', () => {
     expect(t('error.rule.sonar-login')).toBe('SonarQube refused these credentials')
     expect(t('error.rule.sonar-rights')).toBe('These credentials cannot browse the SonarQube projects')
     expect(t('error.rule.sonar-project')).toBe('Unknown SonarQube project')
+  })
+
+  // The node form of a SonarQube Cloud instance: its organization, with a hint, and the credentials it accepts.
+  it('labels the SonarQube Cloud parameters and errors in English and French', () => {
+    def.install()
+    const { t } = useI18nStore()
+    expect(t('service:qa:sonarqube:organization')).toBe('Organization')
+    expect(t('service:qa:sonarqube:organization-description')).toBe('SonarQube Cloud only: the key of the organization')
+    expect(t('service:qa:sonarqube:user-description')).toBe('Any value when the password is a token')
+    expect(t('service:qa:sonarqube:password-description')).toBe('A password or a token. SonarQube Cloud only accepts a token')
+    expect(t('error.rule.sonar-organization')).toBe('Unknown SonarQube Cloud organization')
+    const keys = ['organization', 'organization-description', 'user-description', 'password-description'].map((k) => `service:qa:sonarqube:${k}`)
+    for (const key of [...keys, 'error.rule.sonar-organization']) {
+      expect(frMessages[key], key).toBeTruthy()
+      expect(frMessages[key], key).not.toBe(enMessages[key])
+    }
   })
 
   it('exposes a valid tool-level manifest', () => {
