@@ -11,7 +11,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.ligoj.app.api.SubscriptionMode;
 import org.ligoj.app.api.SubscriptionStatusWithData;
+import org.ligoj.app.dao.NodeRepository;
+import org.ligoj.app.dao.ParameterRepository;
 import org.ligoj.app.plugin.qa.QaResource;
 import org.ligoj.app.plugin.qa.QaServicePlugin;
 import org.ligoj.app.resource.NormalizeFormat;
@@ -29,6 +32,8 @@ import tools.jackson.core.type.TypeReference;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -106,6 +111,22 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	 */
 	public static final String PARAMETER_ORGANIZATION = KEY + ":organization";
 
+	/**
+	 * Name of the permission template created in CREATE mode, the project key by default.
+	 */
+	public static final String PARAMETER_TEMPLATE = KEY + ":template";
+
+	/**
+	 * Regular expression of the project keys the permission template applies to.
+	 */
+	public static final String PARAMETER_TEMPLATE_PATTERN = KEY + ":template-pattern";
+
+	/**
+	 * Role mapping of the permission template: a JSON object keyed by group, each value the list of its project
+	 * permissions.
+	 */
+	public static final String PARAMETER_ROLES = KEY + ":roles";
+
 	@Autowired
 	private ObjectMapperTrim objectMapper;
 
@@ -117,6 +138,12 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 
 	@Value("${sonar.jira.url:https://sonarsource.atlassian.net}")
 	protected String versionServer;
+
+	@Autowired
+	private NodeRepository nodeRepository;
+
+	@Autowired
+	private ParameterRepository parameterRepository;
 
 	@Override
 	public void link(final int subscription) throws Exception {
@@ -429,6 +456,136 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 		return new ArrayList<>(result.values());
 	}
 
+	/**
+	 * Sink of the non-blocking warnings of a subscription creation or deletion, reported to the caller.
+	 */
+	protected ResponseWarnings.Sink responseWarnings() {
+		return ResponseWarnings::add;
+	}
+
+	private SonarQubeTemplates newTemplates(final Map<String, String> parameters) {
+		return new SonarQubeTemplates(parameters, objectMapper);
+	}
+
+	/**
+	 * Create the permission template of the project, or reuse a template of the same name and pattern, then give each
+	 * group of the role mapping its project permissions on it. Everything is validated before the first remote call.
+	 * The existing projects keep their permissions: SonarQube applies a template when a project is created.
+	 */
+	@Override
+	public void create(final int subscription) {
+		final var parameters = subscriptionResource.getParameters(subscription);
+		final var name = StringUtils.trimToEmpty(parameters.get(PARAMETER_TEMPLATE));
+		if (name.isEmpty()) {
+			throw new ValidationJsonException(PARAMETER_TEMPLATE, "NotBlank");
+		}
+		final var pattern = StringUtils.trimToEmpty(parameters.get(PARAMETER_TEMPLATE_PATTERN));
+		if (pattern.isEmpty()) {
+			throw new ValidationJsonException(PARAMETER_TEMPLATE_PATTERN, "NotBlank");
+		}
+		try {
+			Pattern.compile(pattern);
+		} catch (final PatternSyntaxException e) {
+			throw new ValidationJsonException(PARAMETER_TEMPLATE_PATTERN, "sonar-template-pattern");
+		}
+		final var roles = parseRoles(parameters.get(PARAMETER_ROLES));
+		validateAdminAccess(parameters);
+
+		final var templates = newTemplates(parameters);
+		final var existing = templates.find(name);
+		final String template;
+		if (existing == null) {
+			final var description = "Ligoj project " + subscriptionRepository.findOneExpected(subscription).getProject().getName();
+			templates.create(name, pattern, description);
+			template = name;
+		} else if (pattern.equals(existing.projectKeyPattern())) {
+			// Reused under its own name, the names being unique whatever their case
+			template = existing.name();
+			log.info("SonarQube permission template {} already exists, reused", template);
+			responseWarnings().warn("sonar-template-reused", ResponseWarnings.parameters("template", template));
+		} else {
+			throw new ValidationJsonException(PARAMETER_TEMPLATE_PATTERN, "sonar-template-exists", "pattern",
+					Objects.toString(existing.projectKeyPattern(), ""));
+		}
+		roles.forEach((group, permissions) -> {
+			templates.ensureGroup(group);
+			templates.grant(template, group, permissions);
+		});
+	}
+
+	/**
+	 * Delete the remote data of a template-based subscription: its permission template. The groups are kept, often
+	 * shared or synchronized from LDAP, and the projects too, created by the scanners. A template already gone is a
+	 * warning.
+	 */
+	@Override
+	public void delete(final int subscription, final boolean deleteRemoteData) {
+		if (!deleteRemoteData) {
+			return;
+		}
+		final var parameters = subscriptionResource.getParameters(subscription);
+		final var name = StringUtils.trimToNull(parameters.get(PARAMETER_TEMPLATE));
+		if (name == null) {
+			// A linked project is not a remote data of Ligoj
+			return;
+		}
+		final var templates = newTemplates(parameters);
+		final var template = templates.find(name);
+		if (template == null) {
+			log.info("SonarQube permission template {} already deleted", name);
+			responseWarnings().warn("sonar-template-missing", ResponseWarnings.parameters("template", name));
+		} else {
+			templates.delete(template.name());
+		}
+	}
+
+	/**
+	 * Parse and validate the role mapping, trimmed first: a JSON object keyed by group, each value a non-empty list of
+	 * project permissions. Blank: no group permission.
+	 */
+	private Map<String, List<String>> parseRoles(final String raw) {
+		final var json = StringUtils.trimToNull(raw);
+		if (json == null) {
+			return Map.of();
+		}
+		final Map<String, List<String>> roles;
+		try {
+			roles = objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, List<String>>>() {
+				// Nothing to extend
+			});
+		} catch (final JacksonException e) {
+			log.info("Invalid SonarQube role mapping: {}", e.getOriginalMessage());
+			throw new ValidationJsonException(PARAMETER_ROLES, "sonar-roles-json");
+		}
+		roles.forEach((group, permissions) -> {
+			if (StringUtils.isBlank(group) || permissions == null || permissions.isEmpty()) {
+				throw new ValidationJsonException(PARAMETER_ROLES, "sonar-roles-json");
+			}
+			// A null permission is reported as "null": findFirst() refuses a null element
+			permissions.stream().filter(p -> p == null || !SonarQubeTemplates.PERMISSIONS.contains(p)).map(String::valueOf)
+					.findFirst().ifPresent(p -> {
+						throw new ValidationJsonException(PARAMETER_ROLES, "sonar-roles-permission", "group", group, "permission", p);
+					});
+		});
+		return roles;
+	}
+
+	/**
+	 * Upgrade the installed data, the CSV seed being insert-only: the tool node accepts the creation of a permission
+	 * template, and the project is asked in LINK mode only, the CREATE mode finding the projects by template.
+	 */
+	@Override
+	public void update(final String oldVersion) {
+		nodeRepository.findById(KEY).filter(n -> n.getMode() == SubscriptionMode.LINK).ifPresent(n -> {
+			log.info("Node {} now supports the permission template creation", KEY);
+			n.setMode(SubscriptionMode.ALL);
+		});
+		parameterRepository.findById(PARAMETER_PROJECT).filter(p -> p.getMode() != SubscriptionMode.LINK).ifPresent(p -> {
+			log.info("Parameter {} is now asked in LINK mode only", PARAMETER_PROJECT);
+			p.setMode(SubscriptionMode.LINK);
+		});
+	}
+
 	@Override
 	public String getKey() {
 		return KEY;
@@ -439,11 +596,68 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 		return versionUtils.getLatestReleasedVersionName(versionServer, "SONAR");
 	}
 
+	/**
+	 * Projects of a template listed in the status data at most.
+	 */
+	static final int LISTED_PROJECTS = 20;
+
 	@Override
 	public SubscriptionStatusWithData checkSubscriptionStatus(final Map<String, String> parameters) throws Exception {
 		final var nodeStatusWithData = new SubscriptionStatusWithData();
-		nodeStatusWithData.put("project", validateProject(parameters));
+		final var template = StringUtils.trimToNull(parameters.get(PARAMETER_TEMPLATE));
+		if (template == null) {
+			nodeStatusWithData.put("project", validateProject(parameters));
+		} else {
+			checkTemplateStatus(parameters, template, nodeStatusWithData);
+		}
 		return nodeStatusWithData;
+	}
+
+	/**
+	 * Gather the projects of the permission template: the template as SonarQube has it now, the matching projects, and
+	 * the details of the latest analyzed one in the shape of a linked project.
+	 */
+	private void checkTemplateStatus(final Map<String, String> parameters, final String name, final SubscriptionStatusWithData data) {
+		final var templates = newTemplates(parameters);
+		final var template = templates.find(name);
+		if (template == null) {
+			throw new ValidationJsonException(PARAMETER_TEMPLATE, "sonar-template", "name", name);
+		}
+		final var projects = templates.projects(template.projectKeyPattern());
+		data.put("template", Map.of("name", template.name(), "pattern", StringUtils.defaultString(template.projectKeyPattern())));
+		data.put("projects", List.copyOf(projects.subList(0, Math.min(LISTED_PROJECTS, projects.size()))));
+		data.put("projectsCount", projects.size());
+		projects.stream().filter(p -> SonarQubeTemplates.analysisTime(p) != null).findFirst().map(p -> getProject(parameters, p.key()))
+				.ifPresent(p -> data.put("project", p));
+	}
+
+	/**
+	 * Return the details of a project of a permission template subscription, as for its latest analyzed project: the
+	 * metrics and the branches. Only a project matching the template pattern, as SonarQube has it now, is read: the
+	 * node credentials can read any project.
+	 *
+	 * @param subscription The permission template subscription, visible by the principal user.
+	 * @param key          The project key.
+	 * @return The project details.
+	 */
+	@GET
+	@Path("{subscription:\\d+}/project/{key}")
+	public SonarQubeProject getTemplateProject(@PathParam("subscription") final int subscription, @PathParam("key") final String key) {
+		final var parameters = subscriptionResource.getParameters(subscription);
+		final var name = StringUtils.trimToNull(parameters.get(PARAMETER_TEMPLATE));
+		if (name == null) {
+			// A linked project subscription
+			throw new ValidationJsonException(PARAMETER_PROJECT, "sonar-project", key);
+		}
+		final var template = newTemplates(parameters).find(name);
+		if (template == null) {
+			throw new ValidationJsonException(PARAMETER_TEMPLATE, "sonar-template", "name", name);
+		}
+		if (!SonarQubeTemplates.matches(template.projectKeyPattern(), key)) {
+			throw new ValidationJsonException(PARAMETER_PROJECT, "sonar-project", key);
+		}
+		return Optional.ofNullable(getProject(parameters, key))
+				.orElseThrow(() -> new ValidationJsonException(PARAMETER_PROJECT, "sonar-project", key));
 	}
 
 	@Override

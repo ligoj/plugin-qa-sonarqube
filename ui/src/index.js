@@ -1,3 +1,23 @@
+// Load the sibling index.css at runtime. Vite's library build emits it as
+// a separate file but does NOT add `import './index.css'` to the JS entry
+// — so when the host dynamic-imports this bundle the stylesheet never
+// loads and the scoped SFC styles do not apply. The link carries the
+// `?v=<digest>` query of the JS bundle URL (app-ui plugins/loader.js), so
+// the stylesheet rotates with the bundle and its `data-v-*` ids match.
+if (typeof document !== 'undefined') {
+  const id = 'ligoj-plugin-qa-sonarqube-css'
+  if (!document.getElementById(id)) {
+    const link = document.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    const cssUrl = new URL(/* @vite-ignore */ './index.css', import.meta.url)
+    const selfQuery = new URL(import.meta.url).search
+    if (selfQuery) cssUrl.search = selfQuery
+    link.href = cssUrl.href
+    document.head.appendChild(link)
+  }
+}
+
 /*
  * Plugin "qa-sonarqube" — SonarQube implementation of plugin-qa.
  *
@@ -17,6 +37,8 @@ const features = {
   renderDetailsKey: service.renderDetailsKey,
   renderDetailsFeatures: service.renderDetailsFeatures,
   parameterField: service.parameterField,
+  parameterLayout: service.parameterLayout,
+  parameterSummary: service.parameterSummary,
 }
 
 export default {

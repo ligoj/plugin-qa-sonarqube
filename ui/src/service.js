@@ -5,7 +5,8 @@
  * delegates the subscription-row hooks to us. Mirrors the legacy
  * `sonarqube.js`:
  *   - renderFeatures        → a link to the SonarQube project dashboard.
- *   - renderDetailsKey      → the project chip.
+ *   - renderDetailsKey      → the project chip; for a permission template, the
+ *     latest analyzed project chip.
  *   - renderDetailsFeatures → the live metric badges + branch list, read from
  *     `subscription.data.project` (populated by status/refresh). Each metric is
  *     styled by KIND: A–E *_rating grades get a graded colour, ncloc renders as
@@ -25,20 +26,21 @@
 import { h } from 'vue'
 import { VIcon, useI18nStore, renderServiceLink, renderDetailsChip, remoteSearchField } from '@ligoj/host'
 
-const PARAM_URL = 'service:qa:sonarqube:url'
-const PARAM_PROJECT = 'service:qa:sonarqube:project'
+import { PARAM_URL, PARAM_PROJECT, PARAM_TEMPLATE, PARAM_TEMPLATE_PATTERN, PARAM_ROLES } from './params.js'
+import { rolesSummary } from './sonarJson.js'
+import { analysisDay, dashboardUrl } from './dashboard.js'
+import SonarTemplateField from './fields/SonarTemplateField.vue'
+import SonarRolesField from './fields/SonarRolesField.vue'
+import SonarOtherProjects from './components/SonarOtherProjects.vue'
 
-// The project dashboard. `/dashboard?id=<key>` is the route of SonarQube 9.9 to
-// 26.x, and later versions redirect it with its query. The legacy
-// `/dashboard/index/<key>` redirect was dropped in 10.0: it is a 404 since.
-function dashboardUrl(url, projectKey) {
-  return `${url.replace(/\/$/, '')}/dashboard?id=${encodeURIComponent(projectKey)}`
+// The project a row shows: the linked one, or for a permission template the latest analyzed of its projects
+function shownProject(subscription) {
+  return subscription?.parameters?.[PARAM_PROJECT] || subscription?.data?.project?.key || null
 }
 
 function renderFeatures(subscription) {
-  const params = subscription?.parameters
-  const url = params?.[PARAM_URL]
-  const project = params?.[PARAM_PROJECT]
+  const url = subscription?.parameters?.[PARAM_URL]
+  const project = shownProject(subscription)
   if (!url || !project) return []
   const { t } = useI18nStore()
   return [renderServiceLink({
@@ -49,9 +51,16 @@ function renderFeatures(subscription) {
 }
 
 function renderDetailsKey(subscription) {
+  const { t } = useI18nStore()
+  if (subscription?.parameters?.[PARAM_TEMPLATE]) {
+    // A permission template: its latest analyzed project, shown as the linked project of a LINK subscription
+    const project = subscription?.data?.project
+    if (!project?.key) return null
+    const title = [t('service:qa:sonarqube:latest-project'), project.name].filter(Boolean).join('\n')
+    return renderDetailsChip({ icon: 'mdi-shield-check-outline', text: project.key, title })
+  }
   const project = subscription?.parameters?.[PARAM_PROJECT]
   if (!project) return null
-  const { t } = useI18nStore()
   return renderDetailsChip({ icon: 'mdi-shield-check-outline', text: project, title: t('service:qa:sonarqube:project') })
 }
 
@@ -155,24 +164,55 @@ function renderBranch(b, url, projectKey, t) {
   return h('div', { class: 'sq-branch', style: 'display:flex;align-items:center;gap:6px;' }, metrics ? [link, metrics] : [link])
 }
 
-// Live SonarQube details: project metrics + the non-main branch/PR list.
-// Reads `subscription.data.project` (populated by status/refresh); returns null
-// until that arrives, so the row degrades cleanly to the key chip alone.
+// The other projects of a permission template: a chip, its tooltip listing them with their last analysis, opening the
+// table of all its projects
+function renderOtherProjects(subscription, shown, t) {
+  const data = subscription.data
+  const others = (data.projects || []).filter((p) => p.key !== shown)
+  const count = (data.projectsCount ?? others.length) - (shown ? 1 : 0)
+  if (count <= 0) return null
+  const lines = others.map((p) => `${p.key} — ${analysisDay(p.lastAnalysisDate) || t('service:qa:sonarqube:never-analyzed')}`)
+  if (count > others.length) lines.push(t('service:qa:sonarqube:more-projects', { count: count - others.length }))
+  const projects = data.projects || []
+  return h(SonarOtherProjects, {
+    subscription,
+    projects,
+    latest: data.project,
+    more: (data.projectsCount ?? projects.length) - projects.length,
+    pattern: data.template?.pattern || subscription.parameters?.[PARAM_TEMPLATE_PATTERN] || '',
+    text: t('service:qa:sonarqube:other-projects', { count }, count),
+    tooltip: lines.join('\n'),
+  })
+}
+
+// Live SonarQube details: project metrics + the non-main branch/PR list, and for a permission template the other
+// projects. Reads `subscription.data` (populated by status/refresh); returns null until it arrives, so the row degrades
+// cleanly to the key chip alone.
 function renderDetailsFeatures(subscription) {
-  const project = subscription?.data?.project
-  if (!project) return null
+  const data = subscription?.data
+  const project = data?.project
+  const template = !!subscription?.parameters?.[PARAM_TEMPLATE]
+  if (!project && !(template && data?.projects)) return null
   const { t } = useI18nStore()
   const out = []
-  const metrics = renderMetrics(project, t)
-  if (metrics) out.push(metrics)
-  const url = subscription?.parameters?.[PARAM_URL]
-  const projectKey = subscription?.parameters?.[PARAM_PROJECT]
-  const branches = (project.branches || [])
-    .filter((b) => !b.isMain)
-    .map((b) => renderBranch(b, url, projectKey, t))
-    .filter(Boolean)
-  if (branches.length) {
-    out.push(h('div', { class: 'sq-branches', style: 'display:flex;flex-direction:column;gap:2px;margin-top:2px;width:100%;' }, branches))
+  if (project) {
+    const metrics = renderMetrics(project, t)
+    if (metrics) out.push(metrics)
+    const url = subscription?.parameters?.[PARAM_URL]
+    const projectKey = shownProject(subscription)
+    const branches = (project.branches || [])
+      .filter((b) => !b.isMain)
+      .map((b) => renderBranch(b, url, projectKey, t))
+      .filter(Boolean)
+    if (branches.length) {
+      out.push(h('div', { class: 'sq-branches', style: 'display:flex;flex-direction:column;gap:2px;margin-top:2px;width:100%;' }, branches))
+    }
+  } else {
+    out.push(h('span', { class: 'sq-none', style: 'font-size:12px;opacity:.7;' }, t('service:qa:sonarqube:no-analyzed-project')))
+  }
+  if (template) {
+    const others = renderOtherProjects(subscription, project?.key, t)
+    if (others) out.push(others)
   }
   return out.length ? out : null
 }
@@ -187,12 +227,33 @@ const ProjectField = remoteSearchField({
 })
 
 /**
- * Subscribe-wizard hook: the project parameter is picked among the projects of
- * the selected SonarQube node. Null for every other parameter and when editing
- * a node: the default type-based input is rendered.
+ * Subscribe-wizard hooks: the project is picked among the projects of the selected SonarQube node; in CREATE mode, the
+ * permission template name and pattern are prefilled from the project key, and the role mapping is a checked JSON.
+ * Null when editing a node and for the other parameters: the default type-based input is rendered.
  */
 function parameterField({ parameter, isNode } = {}) {
-  return !isNode && parameter?.id === PARAM_PROJECT ? ProjectField : null
+  if (isNode) return null
+  const id = parameter?.id
+  if (id === PARAM_PROJECT) return ProjectField
+  if (id === PARAM_TEMPLATE || id === PARAM_TEMPLATE_PATTERN) return SonarTemplateField
+  if (id === PARAM_ROLES) return SonarRolesField
+  return null
 }
 
-export default { renderFeatures, renderDetailsKey, renderDetailsFeatures, parameterField }
+/**
+ * Subscribe-wizard order of the CREATE mode: the template, its pattern, then the role mapping. The default order
+ * elsewhere.
+ */
+function parameterLayout({ mode, isNode } = {}) {
+  if (isNode || String(mode).toLowerCase() !== 'create') return []
+  return [{ parameters: [PARAM_TEMPLATE, PARAM_TEMPLATE_PATTERN, PARAM_ROLES] }]
+}
+
+/**
+ * Subscription status tooltip: the role mapping as its groups instead of the raw JSON. Null for the other parameters.
+ */
+function parameterSummary({ parameter, value } = {}) {
+  return parameter === PARAM_ROLES ? rolesSummary(value, useI18nStore().t) : null
+}
+
+export default { renderFeatures, renderDetailsKey, renderDetailsFeatures, parameterField, parameterLayout, parameterSummary }
