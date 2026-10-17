@@ -102,7 +102,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	public static final String PARAMETER_PROJECT = KEY + ":project";
 
 	/**
-	 * Web site URL
+	 * Website URL
 	 */
 	public static final String PARAMETER_URL = KEY + ":url";
 
