@@ -150,7 +150,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void createNewTemplate() throws Exception {
+	void createNewTemplate() {
 		mockAdmin();
 		// A template of a close name is not this one
 		mockTemplates("{\"id\":\"T0\",\"name\":\"ligoj-jupiter-old\",\"projectKeyPattern\":\"old:.*\"}");
@@ -169,7 +169,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void createReusedTemplate() throws Exception {
+	void createReusedTemplate() {
 		mockAdmin();
 		mockTemplates("{\"id\":\"T1\",\"name\":\"ligoj-jupiter\",\"projectKeyPattern\":\"ligoj-jupiter:.*\"}");
 		mockGroup("ligoj-jupiter-admin", "ligoj-jupiter-admin", true);
@@ -229,7 +229,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void createNoRoles() throws Exception {
+	void createNoRoles() {
 		setParameter(SonarQubePluginResource.PARAMETER_ROLES, " ");
 		mockAdmin();
 		mockTemplates("");
@@ -243,7 +243,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void createEncodesNames() throws Exception {
+	void createEncodesNames() {
 		setParameter(SonarQubePluginResource.PARAMETER_ROLES, "{\"team a+b&c\": [\"user\"]}");
 		mockAdmin();
 		mockTemplates("");
@@ -279,7 +279,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void createCloud() throws Exception {
+	void createCloud() {
 		// The node of a SonarQube Cloud organization
 		final var pv = new ParameterValue();
 		pv.setParameter(em.find(Parameter.class, SonarQubePluginResource.PARAMETER_ORGANIZATION));
@@ -324,7 +324,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 
 	@SuppressWarnings("unchecked")
 	private static List<String> keys(final Map<String, Object> data) {
-		return ((List<SonarQubeTemplateProject>) data.get("projects")).stream().map(SonarQubeTemplateProject::key).toList();
+		return ((Collection<SonarQubeTemplateProject>) data.get("projects")).stream().map(SonarQubeTemplateProject::key).toList();
 	}
 
 	@Test
@@ -505,14 +505,14 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	private static final String DELETE_TEMPLATE = "/api/permissions/delete_template?templateName=ligoj-jupiter";
 
 	@Test
-	void deleteNoRemoteData() throws Exception {
+	void deleteNoRemoteData() {
 		httpServer.start();
 		resource.delete(subscription, false);
 		httpServer.verify(0, anyRequestedFor(anyUrl()));
 	}
 
 	@Test
-	void deleteLinkSubscription() throws Exception {
+	void deleteLinkSubscription() {
 		setParameter(SonarQubePluginResource.PARAMETER_TEMPLATE, null);
 		setParameter(SonarQubePluginResource.PARAMETER_PROJECT, "123456");
 		httpServer.start();
@@ -521,7 +521,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void deleteTemplate() throws Exception {
+	void deleteTemplate() {
 		mockTemplates("{\"id\":\"T1\",\"name\":\"ligoj-jupiter\",\"projectKeyPattern\":\"ligoj-jupiter:.*\"}");
 		mockWrites();
 		httpServer.start();
@@ -534,7 +534,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void deleteTemplateGone() throws Exception {
+	void deleteTemplateGone() {
 		mockTemplates("");
 		mockWrites();
 		httpServer.start();
@@ -627,7 +627,7 @@ class SonarQubePluginResourceCreateTest extends AbstractServerTest {
 	}
 
 	@Test
-	void createReusedTemplateOtherCase() throws Exception {
+	void createReusedTemplateOtherCase() {
 		// SonarQube template names are unique whatever their case: the template is reused under its own name
 		mockAdmin();
 		mockTemplates("{\"id\":\"T1\",\"name\":\"Ligoj-Jupiter\",\"projectKeyPattern\":\"ligoj-jupiter:.*\"}");

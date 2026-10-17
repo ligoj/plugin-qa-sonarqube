@@ -115,7 +115,7 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 	}
 
 	@Test
-	void getLastVersion() throws Exception {
+	void getLastVersion() {
 		final var lastVersion = resource.getLastVersion();
 		Assertions.assertNotNull(lastVersion);
 		Assertions.assertTrue(lastVersion.compareTo("5.0") > 0);
@@ -263,7 +263,7 @@ class SonarQubePluginResourceTest extends AbstractServerTest {
 
 	}
 
-	private SonarQubeProject validateProject(final String id, final String maxBranches, final String metrics) throws IOException {
+	private SonarQubeProject validateProject(final String id, final String maxBranches, final String metrics) {
 		final var parameters = pvResource.getNodeParameters("service:qa:sonarqube:bpr");
 		parameters.put(SonarQubePluginResource.PARAMETER_PROJECT, id);
 		if (maxBranches == null) {

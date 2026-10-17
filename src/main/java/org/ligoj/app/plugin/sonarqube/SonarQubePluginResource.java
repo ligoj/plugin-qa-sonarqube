@@ -146,7 +146,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	private ParameterRepository parameterRepository;
 
 	@Override
-	public void link(final int subscription) throws Exception {
+	public void link(final int subscription) {
 		final var parameters = subscriptionResource.getParameters(subscription);
 
 		// Validate the node settings
@@ -602,7 +602,7 @@ public class SonarQubePluginResource extends AbstractToolPluginResource implemen
 	static final int LISTED_PROJECTS = 20;
 
 	@Override
-	public SubscriptionStatusWithData checkSubscriptionStatus(final Map<String, String> parameters) throws Exception {
+	public SubscriptionStatusWithData checkSubscriptionStatus(final Map<String, String> parameters) {
 		final var nodeStatusWithData = new SubscriptionStatusWithData();
 		final var template = StringUtils.trimToNull(parameters.get(PARAMETER_TEMPLATE));
 		if (template == null) {
