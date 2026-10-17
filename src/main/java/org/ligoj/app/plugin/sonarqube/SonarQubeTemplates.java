@@ -241,14 +241,6 @@ class SonarQubeTemplates {
 	}
 
 	/**
-	 * Return the projects whose key matches the pattern, latest analysis first, the never analyzed ones last, then by
-	 * key. The literal start of the pattern, when long enough, narrows the search on the server: the search matches a
-	 * part of the key, so it returns a superset.
-	 *
-	 * @param pattern The project key pattern of the template, may be {@code null}.
-	 * @return The matching projects, empty without a usable pattern.
-	 */
-	/**
 	 * Whether a project key matches the project key pattern of a template, as for the projects listed by the status. A
 	 * blank or unusable pattern matches nothing.
 	 *
@@ -268,6 +260,14 @@ class SonarQubeTemplates {
 		}
 	}
 
+	/**
+	 * Return the projects whose key matches the pattern, latest analysis first, the never analyzed ones last, then by
+	 * key. The literal start of the pattern, when long enough, narrows the search on the server: the search matches a
+	 * part of the key, so it returns a superset.
+	 *
+	 * @param pattern The project key pattern of the template, may be {@code null}.
+	 * @return The matching projects, empty without a usable pattern.
+	 */
 	List<SonarQubeTemplateProject> projects(final String pattern) {
 		if (StringUtils.isBlank(pattern)) {
 			return List.of();
